@@ -24,11 +24,11 @@ export type InterjectInput = {
 export function talkativenessBase(talkativeness: Talkativeness): number {
   switch (talkativeness) {
     case "quiet":
-      return 0.14;
+      return 0.05;
     case "loud":
-      return 0.45;
+      return 0.2;
     default:
-      return 0.28;
+      return 0.1;
   }
 }
 
@@ -61,13 +61,13 @@ export function computeInterjectChance(input: InterjectInput): number {
 
   let chance = talkativenessBase(input.talkativeness);
   chance += input.activityLevel * input.activityBoostMax;
-  chance += Math.min(input.userAffection * 0.025, input.affectionTalkCap);
-  if (input.hasKnownWord) chance *= 2.5;
-  if (input.hasRecentSnippet) chance += 0.15;
-  if (input.mood === "genki" || input.mood === "proud") chance *= 1.4;
+  chance += Math.min(input.userAffection * 0.012, input.affectionTalkCap);
+  if (input.hasKnownWord) chance *= 1.5;
+  if (input.hasRecentSnippet) chance += 0.05;
+  if (input.mood === "genki" || input.mood === "proud") chance *= 1.25;
   if (input.mood === "sleepy") chance *= 0.6;
-  if (input.hasEmotion) chance += 0.12;
-  if (input.messageLength >= 30) chance += 0.08;
+  if (input.hasEmotion) chance += 0.05;
+  if (input.messageLength >= 30) chance += 0.04;
   return Math.min(chance, input.chanceCap);
 }
 

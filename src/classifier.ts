@@ -121,13 +121,13 @@ export function classifyMessage(text: string, options: ClassifierOptions): Messa
   if (/つんつん|つっつ|poke|にせいつん/u.test(normalized)) return { type: "poke" };
   if (/たからもの|宝物|宝もの|treasure/u.test(normalized)) return { type: "treasure" };
 
-  if (/^静かにやめ(?:て|といて)?[。.!！]*$/iu.test(normalized)) return { type: "quietOff" };
-  if (/^しずかにやめ(?:て|といて)?[。.!！]*$/iu.test(normalized)) return { type: "quietOff" };
-  if (/^(?:出てきて|また話して|戻ってきて|もういいよ)[。.!！]*$/u.test(normalized)) {
+  if (/静かにやめ(?:て|といて)?/iu.test(normalized)) return { type: "quietOff" };
+  if (/しずかにやめ(?:て|といて)?/iu.test(normalized)) return { type: "quietOff" };
+  if (/出てきて|また話して|戻ってきて|もういいよ/u.test(normalized)) {
     return { type: "quietOff" };
   }
-  if (/^静かに(?:して|しといて|で)?[。.!！]*$/iu.test(normalized)) return { type: "quietOn" };
-  if (/^しずかに(?:して|しといて|で)?[。.!！]*$/iu.test(normalized)) return { type: "quietOn" };
+  if (/静かに(?:して|しといて|で)?/iu.test(normalized)) return { type: "quietOn" };
+  if (/しずかに(?:して|しといて|で)?/iu.test(normalized)) return { type: "quietOn" };
 
   const numeric = normalized.match(/^\d{1,2}$/u);
   if (numeric) return { type: "numericPoem", count: Number(numeric[0]) };

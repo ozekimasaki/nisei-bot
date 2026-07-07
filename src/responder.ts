@@ -26,7 +26,8 @@ import {
   confusedAboutSubject,
   emptyTreasureReply,
   formatFactAnswer,
-  withMaybeOpener
+  withMaybeOpener,
+  withQuestionOpener
 } from "./utterance.js";
 import { WikiCooldown } from "./wiki-cooldown.js";
 import {
@@ -459,7 +460,10 @@ export class ResponsePlanner {
     if (!fact && this.config.wikiEnabled && this.random.chance(this.config.wikiFallbackRate)) {
       const wikiText = await this.lookupWiki(input.guildId, subject, false);
       if (!wikiText.includes("しらべられない")) {
-        return await this.finishText(input.guildId, `${wikiText}${this.mood.questionSuffix(mood)}`);
+        return await this.finishText(
+          input.guildId,
+          withQuestionOpener(this.random, `${wikiText}${this.mood.questionSuffix(mood)}`)
+        );
       }
     }
 
@@ -495,7 +499,7 @@ export class ResponsePlanner {
     }
 
     text = await this.maybeAddWrongUser(input.guildId, input.userId, text, user);
-    return await this.finishText(input.guildId, text);
+    return await this.finishText(input.guildId, withQuestionOpener(this.random, text));
   }
 
   private async lookupWiki(guildId: string, query: string, force: boolean): Promise<string> {

@@ -8,6 +8,21 @@ export function withMaybeOpener(random: RandomSource, body: string, rate = 0.35)
   return opener ? `${opener}\n${body}` : body;
 }
 
+const questionOpeners = ["はい", "はいっ", "はーい", "はい！", "はい、えっと"];
+
+export function withQuestionOpener(random: RandomSource, body: string): string {
+  const trimmed = body.trim();
+  if (!trimmed) return random.pick(questionOpeners);
+
+  const core =
+    trimmed.replace(/^(?:うん|へへ|なに|あれ|はい)[、。!！\s]*\n?/u, "").trim() || trimmed;
+  const opener = random.pick(questionOpeners);
+  if (random.chance(0.4)) {
+    return `${opener}\n${core}`;
+  }
+  return `${opener}、${core}`;
+}
+
 export function confusedAboutSubject(random: RandomSource, subject: string, hints: string[] = []): string {
   const wordPool = [...defaultWords, ...hints.filter((hint) => hint.length >= 1 && hint.length <= 16)];
   const word = random.pick(wordPool.length > 0 ? wordPool : defaultWords);

@@ -47,6 +47,8 @@ describe("classifyMessage", () => {
     expect(classifyMessage("静かにして", options)).toEqual({ type: "quietOn" });
     expect(classifyMessage("静かにしといて", options)).toEqual({ type: "quietOn" });
     expect(classifyMessage("静かにで", options)).toEqual({ type: "quietOn" });
+    expect(classifyMessage("今から静かにして", options)).toEqual({ type: "quietOn" });
+    expect(classifyMessage("にせい、静かにして", options)).toEqual({ type: "quietOn" });
   });
 
   test("classifies quiet mode off phrases", () => {
@@ -57,5 +59,7 @@ describe("classifyMessage", () => {
     expect(classifyMessage("また話して", options)).toEqual({ type: "quietOff" });
     expect(classifyMessage("戻ってきて", options)).toEqual({ type: "quietOff" });
     expect(classifyMessage("もういいよ", options)).toEqual({ type: "quietOff" });
+    expect(classifyMessage("にせい、出てきて", options)).toEqual({ type: "quietOff" });
+    expect(classifyMessage("静かにやめてね", options)).toEqual({ type: "quietOff" });
   });
 });

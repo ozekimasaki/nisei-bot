@@ -3,7 +3,8 @@ import { SeededRandomSource } from "../src/random.js";
 import {
   confusedAboutSubject,
   formatFactAnswer,
-  withMaybeOpener
+  withMaybeOpener,
+  withQuestionOpener
 } from "../src/utterance.js";
 
 describe("utterance helpers", () => {
@@ -34,5 +35,22 @@ describe("utterance helpers", () => {
     const random = new SeededRandomSource(7);
     const answer = withMaybeOpener(random, "おはよ", 1);
     expect(answer.endsWith("おはよ")).toBe(true);
+  });
+
+  test("withQuestionOpener starts with a cute はい variant", () => {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const random = new SeededRandomSource(seed);
+      const answer = withQuestionOpener(random, "りんごは赤い");
+      expect(answer).toMatch(/^はい/u);
+      expect(answer).toContain("りんご");
+    }
+  });
+
+  test("withQuestionOpener replaces generic openers", () => {
+    const random = new SeededRandomSource(3);
+    const answer = withQuestionOpener(random, "うん\nりんごは赤い");
+    expect(answer).toMatch(/^はい/u);
+    expect(answer).toContain("りんごは赤い");
+    expect(answer).not.toMatch(/^うん/u);
   });
 });

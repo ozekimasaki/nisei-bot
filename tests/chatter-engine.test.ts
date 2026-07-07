@@ -32,10 +32,10 @@ function baseInput(overrides: Partial<InterjectInput> = {}): InterjectInput {
 }
 
 describe("talkativenessBase", () => {
-  it("returns aggressive defaults per mode", () => {
-    expect(talkativenessBase("quiet")).toBe(0.14);
-    expect(talkativenessBase("normal")).toBe(0.28);
-    expect(talkativenessBase("loud")).toBe(0.45);
+  it("returns conservative defaults per mode", () => {
+    expect(talkativenessBase("quiet")).toBe(0.05);
+    expect(talkativenessBase("normal")).toBe(0.1);
+    expect(talkativenessBase("loud")).toBe(0.2);
   });
 });
 
@@ -94,10 +94,13 @@ describe("computeInterjectChance", () => {
         hasRecentSnippet: true,
         mood: "genki",
         hasEmotion: true,
-        messageLength: 80
+        messageLength: 80,
+        activityBoostMax: 0.15,
+        affectionTalkCap: 0.1,
+        chanceCap: 0.3
       })
     );
-    expect(chance).toBeLessThanOrEqual(0.8);
+    expect(chance).toBeLessThanOrEqual(0.3);
   });
 });
 
