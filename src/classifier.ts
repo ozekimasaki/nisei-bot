@@ -103,11 +103,29 @@ export function classifyMessage(text: string, options: ClassifierOptions): Messa
   if (/かんちがい|勘違い/u.test(normalized)) return { type: "kanchigai" };
   if (/図鑑|アルバム/u.test(normalized)) return { type: "album" };
 
-  const question = normalized.match(/^(.{1,40}?)(?:は|って)?(?:なに|何|なんだっけ|何だっけ|だれ|誰)?[?？]$/u);
-  if (question) {
+  const questionBare = normalized.match(/^(なに|何|なんだっけ|何だっけ|だれ|誰)[?？]$/u);
+  if (questionBare) {
     return {
       type: "question",
-      subject: question[1]!.trim()
+      subject: questionBare[1]!
+    };
+  }
+
+  const questionWithTopic = normalized.match(
+    /^(.{1,40}?)(?:は|って)(?:なに|何|なんだっけ|何だっけ|だれ|誰)?[?？]$/u
+  );
+  if (questionWithTopic) {
+    return {
+      type: "question",
+      subject: questionWithTopic[1]!.trim()
+    };
+  }
+
+  const questionRecall = normalized.match(/^(.{1,40}?)(?:なんだっけ|何だっけ)[?？]$/u);
+  if (questionRecall) {
+    return {
+      type: "question",
+      subject: questionRecall[1]!.trim()
     };
   }
 

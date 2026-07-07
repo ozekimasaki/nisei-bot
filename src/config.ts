@@ -77,7 +77,7 @@ export function loadConfig(): AppConfig {
     confusionRate: numberEnv("CONFUSION_RATE", 0.2),
     memoryMixRate: numberEnv("MEMORY_MIX_RATE", 0.15),
     jankenWinRate: numberEnv("JANKEN_WIN_RATE", 0.95),
-    cooldownSeconds: numberEnv("COOLDOWN_SECONDS", 15),
+    cooldownSeconds: numberEnv("COOLDOWN_SECONDS", 30),
     wrongUserRate: numberEnv("WRONG_USER_RATE", 0.12),
     treasurePickRate: numberEnv("TREASURE_PICK_RATE", 0.08),
     affectionGainRate: numberEnv("AFFECTION_GAIN_RATE", 1),

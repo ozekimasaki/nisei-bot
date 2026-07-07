@@ -62,7 +62,7 @@ export function computeInterjectChance(input: InterjectInput): number {
   let chance = talkativenessBase(input.talkativeness);
   chance += input.activityLevel * input.activityBoostMax;
   chance += Math.min(input.userAffection * 0.012, input.affectionTalkCap);
-  if (input.hasKnownWord) chance *= 1.5;
+  if (input.hasKnownWord) chance *= 1.25;
   if (input.hasRecentSnippet) chance += 0.05;
   if (input.mood === "genki" || input.mood === "proud") chance *= 1.25;
   if (input.mood === "sleepy") chance *= 0.6;

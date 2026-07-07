@@ -21,6 +21,7 @@ import { shouldBlockInQuietChannel } from "./quiet-channel.js";
 import { extractEmojis, extractSnippets, sanitizeFactPart, shouldLearnText } from "./phrase.js";
 import { buildMemoryQuiz, quizCaughtReply } from "./quiz.js";
 import type { RandomSource } from "./random.js";
+import { needsUnsolicitedChance } from "./unsolicited.js";
 import { dailyMoodWord, dailySnack, seasonalHint } from "./seasonal.js";
 import {
   confusedAboutSubject,
@@ -137,6 +138,25 @@ export class ResponsePlanner {
 
     if (this.shouldStaySilent(intent.type)) {
       return { shouldReply: false };
+    }
+
+    if (!called && needsUnsolicitedChance(intent.type)) {
+      if (intent.type === "chatter") {
+        const idle = await this.maybeIdleChatter(input.guildId, mood);
+        if (idle) {
+          this.channelActivity.markChattered(input.channelId);
+          await this.store.markSpoke(input.guildId, mood);
+          return this.reply(input, await this.finishText(input.guildId, idle), mood);
+        }
+      }
+      const shouldTalk = await this.shouldRandomlyTalk(
+        input.guildId,
+        input.channelId,
+        input.userId,
+        input.content,
+        mood
+      );
+      if (!shouldTalk) return { shouldReply: false };
     }
 
     switch (intent.type) {
@@ -281,20 +301,6 @@ export class ResponsePlanner {
         return this.reply(input, await this.finishText(input.guildId, this.attachmentReply(input.attachments), 0.15), mood);
       }
       case "chatter": {
-        const idle = await this.maybeIdleChatter(input.guildId, mood);
-        if (idle) {
-          this.channelActivity.markChattered(input.channelId);
-          await this.store.markSpoke(input.guildId, mood);
-          return this.reply(input, await this.finishText(input.guildId, idle), mood);
-        }
-        const shouldTalk = await this.shouldRandomlyTalk(
-          input.guildId,
-          input.channelId,
-          input.userId,
-          input.content,
-          mood
-        );
-        if (!shouldTalk) return { shouldReply: false };
         const text = await this.maybeAddWrongUser(
           input.guildId,
           input.userId,

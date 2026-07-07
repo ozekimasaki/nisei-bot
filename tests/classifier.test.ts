@@ -17,6 +17,29 @@ describe("classifyMessage", () => {
       type: "question",
       subject: "りんご"
     });
+    expect(classifyMessage("りんごって？", options)).toEqual({
+      type: "question",
+      subject: "りんご"
+    });
+    expect(classifyMessage("りんごは何？", options)).toEqual({
+      type: "question",
+      subject: "りんご"
+    });
+    expect(classifyMessage("りんごなんだっけ？", options)).toEqual({
+      type: "question",
+      subject: "りんご"
+    });
+    expect(classifyMessage("何？", options)).toEqual({
+      type: "question",
+      subject: "何"
+    });
+  });
+
+  test("does not treat casual questions as bot questions", () => {
+    expect(classifyMessage("マジで？", options)).toEqual({ type: "chatter" });
+    expect(classifyMessage("どう思う？", options)).toEqual({ type: "chatter" });
+    expect(classifyMessage("今日寒くない？", options)).toEqual({ type: "chatter" });
+    expect(classifyMessage("そうなの？", options)).toEqual({ type: "chatter" });
   });
 
   test("classifies games and command-like text", () => {
