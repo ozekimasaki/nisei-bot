@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model GuildMemory {
+  id         String   @id @default(cuid())
+  guildId    String
+  subject    String
+  predicate  String
+  confidence Float    @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([guildId, subject])
+  @@index([guildId])
+}
+
+model MessageSnippet {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  text      String
+  weight    Float    @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([guildId, createdAt])
+}
+
+model GuildState {
+  guildId     String    @id
+  mood        String    @default("normal")
+  talkCount   Int       @default(0)
+  learnCount  Int       @default(0)
+  lastSpokeAt DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
+model JankenSession {
+  id        String   @id @default(cuid())
+  guildId   String
+  channelId String
+  userId    String
+  startedAt DateTime @default(now())
+
+  @@unique([guildId, channelId, userId])
+  @@index([guildId, channelId])
+}
+
+model KnownUser {
+  id                  String    @id @default(cuid())
+  guildId             String
+  userId              String
+  displayName         String
+  affection           Int       @default(0)
+  seenCount           Int       @default(0)
+  lastSeenAt          DateTime  @default(now())
+  lastReferencedAt    DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId, lastSeenAt])
+}
+
+model Misunderstanding {
+  id              String    @id @default(cuid())
+  guildId         String
+  subject         String
+  wrongPredicate  String
+  sourcePredicate String?
+  weight          Float     @default(1)
+  createdAt       DateTime  @default(now())
+  lastUsedAt       DateTime?
+
+  @@index([guildId, subject])
+}
+
+model TreasureWord {
+  id           String    @id @default(cuid())
+  guildId      String
+  word         String
+  sourceUserId String?
+  reason       String
+  weight       Float     @default(1)
+  createdAt    DateTime  @default(now())
+  lastUsedAt    DateTime?
+
+  @@unique([guildId, word])
+  @@index([guildId, weight])
+}
+
+model PokeState {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  pokeCount   Int      @default(0)
+  lastPokedAt DateTime @default(now())
+
+  @@unique([guildId, userId])
+}
+
+model LearnedEmoji {
+  id           String    @id @default(cuid())
+  guildId      String
+  emoji        String
+  sourceUserId String?
+  weight       Float     @default(1)
+  createdAt    DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  lastUsedAt    DateTime?
+
+  @@unique([guildId, emoji])
+  @@index([guildId, weight])
+}

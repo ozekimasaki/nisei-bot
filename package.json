@@ -1,0 +1,38 @@
+{
+  "name": "chisei-oss",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "dev:windows": "tsx scripts/windows-dev.ts",
+    "check:windows": "tsx scripts/windows-check.ts",
+    "db:windows:up": "podman compose up -d db",
+    "db:windows:down": "podman compose down",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "deploy:commands": "tsx src/deploy-commands.ts",
+    "db:migrate": "prisma migrate deploy",
+    "db:dev": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.11.1",
+    "discord.js": "^14.21.0",
+    "dotenv": "^17.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "prisma": "^6.11.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "undici": "6.27.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
