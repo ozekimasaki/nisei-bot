@@ -27,5 +27,35 @@ export const slashCommands = [
         .setName("subject")
         .setDescription("忘れる言葉")
         .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName("nisei_wiki")
+    .setDescription("ウィキペディアを調べます")
+    .addStringOption((option) =>
+      option
+        .setName("query")
+        .setDescription("調べる言葉")
+        .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName("nisei_kanchigai")
+    .setDescription("かんちがい図鑑を見ます"),
+  new SlashCommandBuilder()
+    .setName("nisei_album")
+    .setDescription("たからものアルバムを見ます"),
+  new SlashCommandBuilder()
+    .setName("nisei_quiz")
+    .setDescription("なに覚えてるかクイズを出します"),
+  new SlashCommandBuilder()
+    .setName("nisei_janken")
+    .setDescription("じゃんけんを始めます"),
+  new SlashCommandBuilder()
+    .setName("nisei_shizuka")
+    .setDescription("このチャンネルでにせいを静かにします")
+    .addBooleanOption((option) =>
+      option
+        .setName("on")
+        .setDescription("true=静かに / false=また話す")
+        .setRequired(true)
     )
 ].map((command) => command.toJSON());

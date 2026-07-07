@@ -54,6 +54,17 @@ export const defaultEmoji = [
   "🙌"
 ];
 
+export const defaultOpeners = [
+  "",
+  "",
+  "",
+  "うん",
+  "へへ",
+  "なに",
+  "あれ",
+  "はい"
+];
+
 export const defaultReactions = [
   "はい",
   "うん",

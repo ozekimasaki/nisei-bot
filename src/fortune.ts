@@ -1,6 +1,7 @@
 import type { MemoryFact } from "./db.js";
 import { defaultEmoji, defaultWords, maybeEmoji } from "./default-brain.js";
 import type { RandomSource } from "./random.js";
+import { withMaybeOpener } from "./utterance.js";
 
 const fortunes = ["だいきち", "ちゅうきち", "しょうきち", "ねむきち", "えらきち", "ころぶきち"];
 const colors = ["赤", "青", "黄色", "緑", "紫", "白", "黒", "透明", "だいたいピンク"];
@@ -22,8 +23,10 @@ export class FortuneGenerator {
       "たぶんいいひ"
     ]);
 
+    const opener = withMaybeOpener(this.random, this.random.pick(["うん", "へへ", "うらなう", ""]));
+
     return [
-      "はい",
+      opener,
       "",
       `うんせい: ${this.random.pick(fortunes)}`,
       `らっきーからー: ${this.random.pick(colors)}`,

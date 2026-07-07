@@ -1,4 +1,5 @@
 import type { KnownUserSummary, MemoryFact, TreasureSummary } from "./db.js";
+import { affectionTier, displayNameForUser } from "./affection.js";
 import { defaultEmoji, defaultReactions, defaultThoughts, defaultWords, maybeEmoji } from "./default-brain.js";
 import type { Mood } from "./mood.js";
 import type { RandomSource } from "./random.js";
@@ -27,11 +28,20 @@ export class PersonalityEngine {
       thoughts.push(`${favorite}わかった`);
     }
 
-    if (context.currentUser && context.currentUser.affection >= 5) {
-      const name = context.currentUser.displayName;
-      thoughts.push(`${name}きた`);
-      thoughts.push(`${name}えらい`);
-      thoughts.push(`${name}の声した`);
+    if (context.currentUser) {
+      const tier = affectionTier(context.currentUser.affection);
+      const name = displayNameForUser(context.currentUser.displayName, context.currentUser.affection);
+
+      if (tier === "friendly" || tier === "favorite") {
+        thoughts.push(`${name}きた`);
+        thoughts.push(`${name}えらい`);
+        thoughts.push(`${name}の声した`);
+      }
+
+      if (tier === "known" || tier === "friendly" || tier === "favorite") {
+        thoughts.push(`${name}いる`);
+        thoughts.push(`${name}のこと`);
+      }
     }
 
     switch (context.mood) {

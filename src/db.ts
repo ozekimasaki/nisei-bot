@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 export const prisma = new PrismaClient();
 
@@ -31,11 +31,16 @@ export type TreasureSummary = {
 export class MemoryStore {
   constructor(private readonly db: PrismaClient) {}
 
-  async remember(guildId: string, subject: string, predicate: string): Promise<void> {
+  async remember(guildId: string, subject: string, predicate: string): Promise<number> {
+    const existing = await this.db.guildMemory.findUnique({
+      where: { guildId_subject: { guildId, subject } }
+    });
+    const confidence = existing ? existing.confidence + 1 : 1;
+
     await this.db.$transaction([
       this.db.guildMemory.upsert({
         where: { guildId_subject: { guildId, subject } },
-        update: { predicate, confidence: 1 },
+        update: { predicate, confidence },
         create: { guildId, subject, predicate, confidence: 1 }
       }),
       this.db.misunderstanding.updateMany({
@@ -48,6 +53,8 @@ export class MemoryStore {
         create: { guildId, learnCount: 1 }
       })
     ]);
+
+    return confidence;
   }
 
   async forget(guildId: string, subject: string): Promise<boolean> {
@@ -55,6 +62,50 @@ export class MemoryStore {
       where: { guildId, subject }
     });
     return result.count > 0;
+  }
+
+  async getGuildMood(guildId: string): Promise<string | null> {
+    const state = await this.db.guildState.findUnique({ where: { guildId } });
+    return state?.mood ?? null;
+  }
+
+  async getUser(guildId: string, userId: string): Promise<KnownUserSummary | null> {
+    const user = await this.db.knownUser.findUnique({
+      where: { guildId_userId: { guildId, userId } }
+    });
+    if (!user) return null;
+    return {
+      userId: user.userId,
+      displayName: user.displayName,
+      affection: user.affection
+    };
+  }
+
+  async topMisunderstandings(guildId: string, limit = 3): Promise<MisunderstandingSummary[]> {
+    const rows = await this.db.misunderstanding.findMany({
+      where: { guildId, weight: { gt: 0.1 } },
+      orderBy: [{ weight: "desc" }, { createdAt: "desc" }],
+      take: limit
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      subject: row.subject,
+      wrongPredicate: row.wrongPredicate,
+      sourcePredicate: row.sourcePredicate,
+      weight: row.weight
+    }));
+  }
+
+  async albumTreasures(guildId: string, limit = 5): Promise<TreasureSummary[]> {
+    return this.treasures(guildId, limit);
+  }
+
+  async corruptMemory(guildId: string, subject: string, wrongPredicate: string): Promise<void> {
+    await this.db.guildMemory.upsert({
+      where: { guildId_subject: { guildId, subject } },
+      update: { predicate: wrongPredicate, confidence: 1 },
+      create: { guildId, subject, predicate: wrongPredicate, confidence: 1 }
+    });
   }
 
   async findFact(guildId: string, subject: string): Promise<MemoryFact | null> {
@@ -343,15 +394,93 @@ export class MemoryStore {
   async startJanken(guildId: string, channelId: string, userId: string): Promise<void> {
     await this.db.jankenSession.upsert({
       where: { guildId_channelId_userId: { guildId, channelId, userId } },
-      update: { startedAt: new Date() },
-      create: { guildId, channelId, userId }
+      update: { startedAt: new Date(), winStreak: 0, loseStreak: 0 },
+      create: { guildId, channelId, userId, winStreak: 0, loseStreak: 0 }
     });
   }
 
-  async consumeJanken(guildId: string, channelId: string, userId: string): Promise<boolean> {
-    const result = await this.db.jankenSession.deleteMany({
-      where: { guildId, channelId, userId }
+  async hasJankenSession(guildId: string, channelId: string, userId: string): Promise<boolean> {
+    const session = await this.db.jankenSession.findUnique({
+      where: { guildId_channelId_userId: { guildId, channelId, userId } }
     });
-    return result.count > 0;
+    return session !== null;
   }
+
+  async getJankenStreak(
+    guildId: string,
+    channelId: string,
+    userId: string
+  ): Promise<{ winStreak: number; loseStreak: number }> {
+    const session = await this.db.jankenSession.findUnique({
+      where: { guildId_channelId_userId: { guildId, channelId, userId } }
+    });
+    if (!session) return { winStreak: 0, loseStreak: 0 };
+    return { winStreak: session.winStreak, loseStreak: session.loseStreak };
+  }
+
+  async updateJankenStreak(
+    guildId: string,
+    channelId: string,
+    userId: string,
+    botWon: boolean
+  ): Promise<{ winStreak: number; loseStreak: number }> {
+    const session = await this.db.jankenSession.findUnique({
+      where: { guildId_channelId_userId: { guildId, channelId, userId } }
+    });
+    if (!session) {
+      await this.startJanken(guildId, channelId, userId);
+      return { winStreak: 0, loseStreak: 0 };
+    }
+
+    const winStreak = botWon ? session.winStreak + 1 : 0;
+    const loseStreak = botWon ? 0 : session.loseStreak + 1;
+    await this.db.jankenSession.update({
+      where: { guildId_channelId_userId: { guildId, channelId, userId } },
+      data: { winStreak, loseStreak }
+    });
+    return { winStreak, loseStreak };
+  }
+
+  async tryClaimMessage(messageId: string): Promise<boolean> {
+    try {
+      await this.db.handledMessage.create({ data: { messageId } });
+      void this.cleanupHandledMessages();
+      return true;
+    } catch (error) {
+      if (isUniqueConstraintError(error)) return false;
+      throw error;
+    }
+  }
+
+  async releaseMessage(messageId: string): Promise<void> {
+    await this.db.handledMessage.deleteMany({ where: { messageId } });
+  }
+
+  async isQuietChannel(guildId: string, channelId: string): Promise<boolean> {
+    const row = await this.db.quietChannel.findUnique({
+      where: { guildId_channelId: { guildId, channelId } }
+    });
+    return row !== null;
+  }
+
+  async setQuietChannel(guildId: string, channelId: string): Promise<void> {
+    await this.db.quietChannel.upsert({
+      where: { guildId_channelId: { guildId, channelId } },
+      update: {},
+      create: { guildId, channelId }
+    });
+  }
+
+  async clearQuietChannel(guildId: string, channelId: string): Promise<void> {
+    await this.db.quietChannel.deleteMany({ where: { guildId, channelId } });
+  }
+
+  private async cleanupHandledMessages(): Promise<void> {
+    const cutoff = new Date(Date.now() - 60 * 60 * 1000);
+    await this.db.handledMessage.deleteMany({ where: { createdAt: { lt: cutoff } } });
+  }
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }

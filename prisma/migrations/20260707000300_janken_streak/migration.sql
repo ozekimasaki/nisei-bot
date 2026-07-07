@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "JankenSession" ADD COLUMN "winStreak" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "JankenSession" ADD COLUMN "loseStreak" INTEGER NOT NULL DEFAULT 0;

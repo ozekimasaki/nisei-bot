@@ -1,4 +1,13 @@
-import { type ClassifierOptions, classifyMessage } from "./classifier.js";
+import { memoryMixMultiplier, wrongUserRateBonus } from "./affection.js";
+import { BotReplyTracker } from "./bot-context.js";
+import { type ClassifierOptions, classifyMessage, isCalled } from "./classifier.js";
+import { type ChannelActivityTracker } from "./channel-activity.js";
+import {
+  hasEmotionInText,
+  hasRecentSnippetMatch,
+  shouldInterject,
+  type InterjectInput
+} from "./chatter-engine.js";
 import { ConfusionEngine } from "./confusion.js";
 import type { AppConfig } from "./config.js";
 import { type KnownUserSummary, type MemoryStore } from "./db.js";
@@ -6,10 +15,26 @@ import { defaultEmoji, defaultReactions, defaultThoughts, defaultWords, maybeEmo
 import { FortuneGenerator } from "./fortune.js";
 import { HaikuGenerator } from "./haiku.js";
 import { JankenGame } from "./janken.js";
-import { MoodEngine, type Mood } from "./mood.js";
+import { MoodEngine, parseMood, type Mood } from "./mood.js";
 import { PersonalityEngine } from "./personality.js";
+import { shouldBlockInQuietChannel } from "./quiet-channel.js";
 import { extractEmojis, extractSnippets, sanitizeFactPart, shouldLearnText } from "./phrase.js";
+import { buildMemoryQuiz, quizCaughtReply } from "./quiz.js";
 import type { RandomSource } from "./random.js";
+import { dailyMoodWord, dailySnack, seasonalHint } from "./seasonal.js";
+import {
+  confusedAboutSubject,
+  emptyTreasureReply,
+  formatFactAnswer,
+  withMaybeOpener
+} from "./utterance.js";
+import { WikiCooldown } from "./wiki-cooldown.js";
+import {
+  fetchSearchTitlesForQuery,
+  mangleWikiReply,
+  pickSearchIndex,
+  searchWikipediaAt
+} from "./wikipedia.js";
 
 export type IncomingMessage = {
   guildId: string;
@@ -19,6 +44,7 @@ export type IncomingMessage = {
   content: string;
   isBot: boolean;
   botUserId?: string;
+  attachments?: { image: boolean; gif: boolean };
 };
 
 export type ResponseResult = {
@@ -33,13 +59,16 @@ export class ResponsePlanner {
   private readonly fortune: FortuneGenerator;
   private readonly haiku: HaikuGenerator;
   private readonly personality: PersonalityEngine;
+  private readonly botReplies = new BotReplyTracker();
+  private readonly wikiCooldown = new WikiCooldown();
 
   constructor(
     private readonly config: AppConfig,
     private readonly store: MemoryStore,
-    private readonly random: RandomSource
+    private readonly random: RandomSource,
+    private readonly channelActivity: ChannelActivityTracker
   ) {
-    this.mood = new MoodEngine(random);
+    this.mood = new MoodEngine(random, config.moodPersistRate);
     this.confusion = new ConfusionEngine(random, config.confusionRate, config.memoryMixRate);
     this.janken = new JankenGame(random, config.jankenWinRate);
     this.fortune = new FortuneGenerator(random);
@@ -54,8 +83,19 @@ export class ResponsePlanner {
       botNames: this.config.botNames,
       botUserId: input.botUserId
     };
-    const intent = classifyMessage(input.content, classifierOptions);
-    const mood = this.mood.nextMood(input.content);
+
+    let intent = classifyMessage(input.content, classifierOptions);
+    if (
+      input.attachments &&
+      (input.attachments.image || input.attachments.gif) &&
+      input.content.trim().length <= 8 &&
+      intent.type === "chatter"
+    ) {
+      intent = { type: "attachment" };
+    }
+
+    const previousMood = parseMood(await this.store.getGuildMood(input.guildId));
+    const mood = this.mood.nextMood(input.content, previousMood);
     await this.store.rememberUser(input.guildId, input.userId, this.cleanDisplayName(input.displayName));
 
     if (shouldLearnText(input.content)) {
@@ -64,6 +104,34 @@ export class ResponsePlanner {
       await Promise.all(snippets.map((snippet) => this.store.saveSnippet(input.guildId, input.userId, snippet)));
       await this.store.saveEmojis(input.guildId, input.userId, emojis);
       await this.maybeSaveTreasures(input.guildId, input.userId, snippets, "ことば");
+    }
+
+    if (intent.type === "quietOn") {
+      await this.store.setQuietChannel(input.guildId, input.channelId);
+      await this.store.markSpoke(input.guildId, mood);
+      return this.reply(input, "静かにする。呼んだら出る", mood);
+    }
+    if (intent.type === "quietOff") {
+      await this.store.clearQuietChannel(input.guildId, input.channelId);
+      await this.store.markSpoke(input.guildId, mood);
+      return this.reply(input, "また出る", mood);
+    }
+
+    const called = isCalled(input.content, classifierOptions);
+    if (
+      (await this.store.isQuietChannel(input.guildId, input.channelId)) &&
+      shouldBlockInQuietChannel(intent, called)
+    ) {
+      return { shouldReply: false };
+    }
+
+    const tsukkomi = this.tryTsukkomi(input, intent);
+    if (tsukkomi) {
+      await this.store.markSpoke(input.guildId, mood);
+      return this.reply(input, await this.finishText(input.guildId, tsukkomi), mood);
+    }
+    if (intent.type === "correction" || intent.type === "doubt" || intent.type === "lieCall") {
+      return { shouldReply: false };
     }
 
     if (this.shouldStaySilent(intent.type)) {
@@ -79,66 +147,90 @@ export class ResponsePlanner {
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate * 2);
         await this.store.saveTreasure(input.guildId, subject, input.userId, "おしえてもらった");
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: await this.finishText(input.guildId, `はい\n${subject}は${predicate}。おぼえた`, 0.1) };
+        const learned =
+          mood === "proud"
+            ? `${subject}は${predicate}。えへん、おぼえた`
+            : `${subject}は${predicate}。おぼえた`;
+        return this.reply(input, await this.finishText(input.guildId, withMaybeOpener(this.random, learned), 0.1), mood, subject);
+      }
+      case "denyTeach": {
+        const subject = sanitizeFactPart(intent.subject);
+        const predicate = sanitizeFactPart(intent.predicate);
+        if (!subject || !predicate) return { shouldReply: false };
+        await this.store.saveMisunderstanding(input.guildId, subject, predicate);
+        await this.store.corruptMemory(input.guildId, subject, predicate);
+        await this.store.markSpoke(input.guildId, mood);
+        return this.reply(
+          input,
+          await this.finishText(input.guildId, withMaybeOpener(this.random, `${subject}は${predicate}じゃない。おぼえた`), 0.1),
+          mood,
+          subject
+        );
       }
       case "question": {
         const subject = sanitizeFactPart(intent.subject);
-        const [fact, otherFacts, oldMistakes] = await Promise.all([
-          this.store.findFact(input.guildId, subject),
-          this.store.randomFacts(input.guildId, 8),
-          this.store.misunderstandings(input.guildId, subject, 5)
-        ]);
-        const maybeOldMistake = oldMistakes.length > 0 && this.random.chance(this.config.misunderstandingReuseRate)
-          ? this.random.pick(oldMistakes)
-          : null;
-        let text: string;
-        if (maybeOldMistake) {
-          await this.store.markMisunderstandingUsed(maybeOldMistake.id);
-          text = `はい\n${subject}は${maybeOldMistake.wrongPredicate}`;
-        } else {
-          const answer = this.confusion.answerFact(subject, fact, otherFacts.filter((item) => item.subject !== subject));
-          text = answer.text;
-          if (answer.misunderstanding) {
-            await this.store.saveMisunderstanding(
-              input.guildId,
-              answer.misunderstanding.subject,
-              answer.misunderstanding.wrongPredicate,
-              answer.misunderstanding.sourcePredicate
-            );
-          }
-        }
-        text = await this.maybeAddWrongUser(input.guildId, input.userId, text);
+        const text = await this.answerQuestion(input, subject, mood);
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: await this.finishText(input.guildId, text) };
+        return this.reply(input, text, mood, subject);
+      }
+      case "wikiSearch": {
+        const text = await this.lookupWiki(input.guildId, intent.query, true);
+        await this.store.markSpoke(input.guildId, mood);
+        return this.reply(input, text, mood, intent.query);
       }
       case "greeting": {
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate);
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: await this.finishText(input.guildId, this.confusion.maybeWrongGreeting(intent.kind)) };
+        const greeting = this.confusion.maybeWrongGreeting(intent.kind, this.mood.greetingWrongBoost(mood));
+        return this.reply(input, await this.finishText(input.guildId, greeting), mood);
       }
       case "poke": {
         const pokeCount = await this.store.poke(input.guildId, input.userId);
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate);
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: await this.finishText(input.guildId, this.pokeReply(pokeCount), 0.22) };
+        return this.reply(input, await this.finishText(input.guildId, this.pokeReply(pokeCount), 0.22), mood);
       }
       case "treasure": {
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: await this.treasure(input.guildId) };
+        return this.reply(input, await this.treasure(input.guildId), mood);
+      }
+      case "kanchigai": {
+        await this.store.markSpoke(input.guildId, mood);
+        return this.reply(input, await this.kanchigaiAlbum(input.guildId), mood);
+      }
+      case "album": {
+        await this.store.markSpoke(input.guildId, mood);
+        return this.reply(input, await this.treasureAlbum(input.guildId), mood);
+      }
+      case "quiz": {
+        await this.store.markSpoke(input.guildId, mood);
+        return this.reply(input, await this.memoryQuiz(input.guildId), mood);
       }
       case "jankenStart": {
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate);
         await this.store.startJanken(input.guildId, input.channelId, input.userId);
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: await this.finishText(input.guildId, this.janken.start(), 0.12) };
+        return this.reply(input, await this.finishText(input.guildId, this.janken.start(), 0.12), mood);
+      }
+      case "jankenRematch": {
+        const hasSession = await this.store.hasJankenSession(input.guildId, input.channelId, input.userId);
+        if (!hasSession) return { shouldReply: false };
+        await this.store.markSpoke(input.guildId, mood);
+        return this.reply(input, await this.finishText(input.guildId, this.janken.rematch(), 0.12), mood);
       }
       case "jankenHand": {
-        const hasSession = await this.store.consumeJanken(input.guildId, input.channelId, input.userId);
+        const hasSession = await this.store.hasJankenSession(input.guildId, input.channelId, input.userId);
         if (!hasSession && !this.wasCalled(input.content, classifierOptions)) {
           return { shouldReply: false };
         }
+        if (!hasSession) {
+          await this.store.startJanken(input.guildId, input.channelId, input.userId);
+        }
+        const currentStreak = await this.store.getJankenStreak(input.guildId, input.channelId, input.userId);
+        const result = this.janken.play(intent.hand, currentStreak);
+        await this.store.updateJankenStreak(input.guildId, input.channelId, input.userId, result.botWon);
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: await this.finishText(input.guildId, this.janken.play(intent.hand), 0.12) };
+        return this.reply(input, await this.finishText(input.guildId, result.text, 0.12), mood);
       }
       case "fortune": {
         const [facts, snippets, treasures, emojis] = await Promise.all([
@@ -149,12 +241,17 @@ export class ResponsePlanner {
         ]);
         await this.store.markSpoke(input.guildId, mood);
         if (this.random.chance(0.18)) {
-          return {
-            shouldReply: true,
-            text: await this.finishText(input.guildId, await this.wrongFortune(input.guildId, input.userId, input.content, mood), 0.25)
-          };
+          return this.reply(
+            input,
+            await this.finishText(input.guildId, await this.wrongFortune(input.guildId, input.userId, input.content, mood), 0.25),
+            mood
+          );
         }
-        return { shouldReply: true, text: this.fortune.generate(facts, snippets, treasures.map((item) => item.word), emojis) };
+        const seasonal = seasonalHint();
+        const snack = dailySnack();
+        const base = this.fortune.generate(facts, snippets, treasures.map((item) => item.word), emojis);
+        const extra = seasonal ? `\n${seasonal}かも` : `\n${snack}かも`;
+        return this.reply(input, `${base}${extra}`, mood);
       }
       case "haiku": {
         const [facts, snippets] = await Promise.all([
@@ -162,7 +259,7 @@ export class ResponsePlanner {
           this.store.recentSnippets(input.guildId, 12)
         ]);
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: this.haiku.generate(facts, snippets) };
+        return this.reply(input, this.haiku.generate(facts, snippets), mood);
       }
       case "numericPoem": {
         const [facts, snippets] = await Promise.all([
@@ -170,24 +267,45 @@ export class ResponsePlanner {
           this.store.recentSnippets(input.guildId, 12)
         ]);
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: this.haiku.numericPoem(intent.count, facts, snippets) };
+        return this.reply(input, this.haiku.numericPoem(intent.count, facts, snippets), mood);
       }
       case "mention": {
         const text = await this.generateChatter(input.guildId, input.userId, input.content, mood);
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate);
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: await this.finishText(input.guildId, `${text}${this.mood.suffix(mood)}`, 0.08) };
+        return this.reply(input, await this.finishText(input.guildId, `${text}${this.mood.suffix(mood)}`, 0.08), mood);
+      }
+      case "attachment": {
+        await this.store.markSpoke(input.guildId, mood);
+        return this.reply(input, await this.finishText(input.guildId, this.attachmentReply(input.attachments), 0.15), mood);
       }
       case "chatter": {
-        const shouldTalk = await this.shouldRandomlyTalk(input.guildId, input.content);
+        const idle = await this.maybeIdleChatter(input.guildId, mood);
+        if (idle) {
+          this.channelActivity.markChattered(input.channelId);
+          await this.store.markSpoke(input.guildId, mood);
+          return this.reply(input, await this.finishText(input.guildId, idle), mood);
+        }
+        const shouldTalk = await this.shouldRandomlyTalk(
+          input.guildId,
+          input.channelId,
+          input.userId,
+          input.content,
+          mood
+        );
         if (!shouldTalk) return { shouldReply: false };
         const text = await this.maybeAddWrongUser(
           input.guildId,
           input.userId,
           await this.generateChatter(input.guildId, input.userId, input.content, mood)
         );
+        this.channelActivity.markChattered(input.channelId);
         await this.store.markSpoke(input.guildId, mood);
-        return { shouldReply: true, text: await this.finishText(input.guildId, this.confusion.mutate(text)) };
+        return this.reply(input, await this.finishText(input.guildId, this.confusion.mutate(text)), mood);
+      }
+      default: {
+        const never: never = intent;
+        throw new Error(`Unhandled intent: ${String(never)}`);
       }
     }
   }
@@ -199,13 +317,29 @@ export class ResponsePlanner {
       "できる",
       "・○○は××だよ、でおぼえる",
       "・○○は？、でこたえる",
+      "・○○ 調べて、でしらべる",
       "・占って、でうらない",
       "・俳句、でなんかよむ",
       "・じゃんけん、であそぶ",
       "・おやすみ、でおはよする",
       "・つんつん、でつつく",
-      "・たからもの、でみせる"
+      "・たからもの、でみせる",
+      "・かんちがい、で図鑑",
+      "・クイズ、でおぼえたこと当て",
+      "・静かに、でこのチャンネル黙る",
+      "・静かにやめて、出てきて、でまた出る",
+      "・静か中はにせいって呼べば出る",
+      "・/nisei_shizuka on:true/false、でも切り替え"
     ].join("\n");
+  }
+
+  async setQuiet(guildId: string, channelId: string, on: boolean): Promise<string> {
+    if (on) {
+      await this.store.setQuietChannel(guildId, channelId);
+      return "このチャンネル静かにする";
+    }
+    await this.store.clearQuietChannel(guildId, channelId);
+    return "また普通に出る";
   }
 
   async stats(guildId: string): Promise<string> {
@@ -219,13 +353,17 @@ export class ResponsePlanner {
       `えもじ: ${stats.emojis}`,
       `発言: ${stats.talkCount}`,
       `学習: ${stats.learnCount}`,
-      `きぶん: ${stats.mood}`
+      `きぶん: ${stats.mood}`,
+      `今日のおやつ: ${dailySnack()}`,
+      `きょうの気分: ${dailyMoodWord()}`
     ].join("\n");
   }
 
   async forget(guildId: string, subject: string): Promise<string> {
     const removed = await this.store.forget(guildId, sanitizeFactPart(subject));
-    return removed ? `はい\n${subject}わすれた` : `はい\n${subject}しらない`;
+    return removed
+      ? withMaybeOpener(this.random, this.random.pick([`${subject}わすれた`, `え、なんで忘れるの。${subject}わすれた`]))
+      : withMaybeOpener(this.random, confusedAboutSubject(this.random, subject));
   }
 
   async slashFortune(guildId: string): Promise<string> {
@@ -246,6 +384,27 @@ export class ResponsePlanner {
     return this.haiku.generate(facts, snippets);
   }
 
+  async slashWiki(guildId: string, query: string): Promise<string> {
+    return this.lookupWiki(guildId, query, true);
+  }
+
+  async slashKanchigai(guildId: string): Promise<string> {
+    return this.kanchigaiAlbum(guildId);
+  }
+
+  async slashAlbum(guildId: string): Promise<string> {
+    return this.treasureAlbum(guildId);
+  }
+
+  async slashQuiz(guildId: string): Promise<string> {
+    return this.memoryQuiz(guildId);
+  }
+
+  async slashJanken(guildId: string, channelId: string, userId: string): Promise<string> {
+    await this.store.startJanken(guildId, channelId, userId);
+    return this.janken.start();
+  }
+
   async poke(guildId: string, userId: string): Promise<string> {
     const pokeCount = await this.store.poke(guildId, userId);
     await this.store.addAffection(guildId, userId, this.config.affectionGainRate);
@@ -254,26 +413,234 @@ export class ResponsePlanner {
 
   async treasure(guildId: string): Promise<string> {
     const treasures = await this.store.treasures(guildId, 8);
-    if (treasures.length === 0) return "はい\nたからものない";
+    if (treasures.length === 0) return withMaybeOpener(this.random, emptyTreasureReply(this.random));
     const treasure = this.random.pick(treasures);
-    return `はい\n${treasure.word}。たからもの`;
+    return withMaybeOpener(this.random, `${treasure.word}。たからもの`);
+  }
+
+  private reply(input: IncomingMessage, text: string, mood: Mood, subject?: string): ResponseResult {
+    this.botReplies.record(input.guildId, input.channelId, text, subject);
+    const suffix = mood === "confused" || mood === "sleepy" ? this.mood.questionSuffix(mood) : "";
+    return { shouldReply: true, text: `${text}${suffix}` };
+  }
+
+  private tryTsukkomi(input: IncomingMessage, intent: { type: string }): string | null {
+    if (!["correction", "doubt", "lieCall"].includes(intent.type)) return null;
+    if (!this.random.chance(this.config.tsukkomiResponseRate)) return null;
+
+    const last = this.botReplies.get(input.guildId, input.channelId);
+    if (!last) return null;
+
+    if (intent.type === "correction") {
+      if (last.subject) {
+        const wrong = this.random.pick(["青い", "まるい", "ねむい", "おやつ", "右"]);
+        return withMaybeOpener(this.random, `${last.subject}は${wrong}。ちがう？`);
+      }
+      return withMaybeOpener(this.random, "ちがう？ たぶんそう");
+    }
+    if (intent.type === "doubt") {
+      return withMaybeOpener(this.random, "ほんと。たぶん");
+    }
+    if (intent.type === "lieCall") {
+      if (last.text.includes("どれがうそ")) return quizCaughtReply(this.random);
+      return withMaybeOpener(this.random, "うそじゃない。たぶん");
+    }
+    return null;
+  }
+
+  private async answerQuestion(input: IncomingMessage, subject: string, mood: Mood): Promise<string> {
+    const [fact, otherFacts, oldMistakes, user] = await Promise.all([
+      this.store.findFact(input.guildId, subject),
+      this.store.randomFacts(input.guildId, 8),
+      this.store.misunderstandings(input.guildId, subject, 5),
+      this.store.getUser(input.guildId, input.userId)
+    ]);
+
+    if (!fact && this.config.wikiEnabled && this.random.chance(this.config.wikiFallbackRate)) {
+      const wikiText = await this.lookupWiki(input.guildId, subject, false);
+      if (!wikiText.includes("しらべられない")) {
+        return await this.finishText(input.guildId, `${wikiText}${this.mood.questionSuffix(mood)}`);
+      }
+    }
+
+    const mixRate = this.config.memoryMixRate * (user ? memoryMixMultiplier(user.affection) : 1);
+    const reuseRate =
+      user && user.affection >= 5
+        ? this.config.misunderstandingReuseRate * 0.9
+        : this.config.misunderstandingReuseRate;
+
+    const maybeOldMistake =
+      oldMistakes.length > 0 && this.random.chance(reuseRate) ? this.random.pick(oldMistakes) : null;
+
+    let text: string;
+    if (maybeOldMistake) {
+      await this.store.markMisunderstandingUsed(maybeOldMistake.id);
+      text = withMaybeOpener(this.random, formatFactAnswer(this.random, subject, maybeOldMistake.wrongPredicate));
+    } else {
+      const answer = this.confusion.answerFact(
+        subject,
+        fact,
+        otherFacts.filter((item) => item.subject !== subject),
+        { memoryMixRate: mixRate }
+      );
+      text = answer.text;
+      if (answer.misunderstanding) {
+        await this.store.saveMisunderstanding(
+          input.guildId,
+          answer.misunderstanding.subject,
+          answer.misunderstanding.wrongPredicate,
+          answer.misunderstanding.sourcePredicate
+        );
+      }
+    }
+
+    text = await this.maybeAddWrongUser(input.guildId, input.userId, text, user);
+    return await this.finishText(input.guildId, text);
+  }
+
+  private async lookupWiki(guildId: string, query: string, force: boolean): Promise<string> {
+    if (!this.config.wikiEnabled) {
+      return withMaybeOpener(this.random, "しらべられない。ねむいかも");
+    }
+    if (!force && !this.wikiCooldown.canUse(guildId, this.config.wikiCooldownSeconds)) {
+      return withMaybeOpener(this.random, confusedAboutSubject(this.random, query));
+    }
+
+    const related = await this.buildWikiQuery(guildId, query);
+    const titles = await fetchSearchTitlesForQuery(related, {
+      userAgent: this.config.wikiUserAgent
+    });
+    if (titles.length === 0) {
+      return withMaybeOpener(this.random, "しらべられない。ねむいかも");
+    }
+
+    const index = pickSearchIndex(this.random, titles.length, this.config.wikiWrongResultRate);
+    const article = await searchWikipediaAt(related, index, {
+      userAgent: this.config.wikiUserAgent
+    });
+    if (!article) {
+      return withMaybeOpener(this.random, "しらべられない。ねむいかも");
+    }
+
+    this.wikiCooldown.markUsed(guildId);
+    const text = mangleWikiReply(this.random, query, article, {
+      includeUrl: this.random.chance(0.5)
+    });
+
+    if (this.random.chance(0.2)) {
+      await this.store.saveMisunderstanding(guildId, query, article.extract.slice(0, 80));
+    }
+
+    return await this.finishText(guildId, text);
+  }
+
+  private async buildWikiQuery(guildId: string, query: string): Promise<string> {
+    if (!this.random.chance(this.config.wikiRelatedWordRate)) return query;
+    const [snippets, treasures, facts] = await Promise.all([
+      this.store.recentSnippets(guildId, 8),
+      this.store.treasures(guildId, 5),
+      this.store.randomFacts(guildId, 5)
+    ]);
+    const pool = [...snippets, ...treasures.map((t) => t.word), ...facts.map((f) => f.subject)];
+    if (pool.length === 0) return query;
+    if (facts.length > 0 && this.random.chance(0.15)) {
+      return this.random.pick(facts).subject;
+    }
+    return `${query} ${this.random.pick(pool)}`;
+  }
+
+  private async kanchigaiAlbum(guildId: string): Promise<string> {
+    const rows = await this.store.topMisunderstandings(guildId, 3);
+    if (rows.length === 0) {
+      return withMaybeOpener(this.random, "かんちがい、まだない");
+    }
+    const lines = rows.map((row, i) => `${i + 1}. ${row.subject}は${row.wrongPredicate}`);
+    return withMaybeOpener(this.random, ["かんちがい図鑑", ...lines].join("\n"));
+  }
+
+  private async treasureAlbum(guildId: string): Promise<string> {
+    const rows = await this.store.albumTreasures(guildId, 5);
+    if (rows.length === 0) {
+      return withMaybeOpener(this.random, emptyTreasureReply(this.random));
+    }
+    const lines = rows.map((row, i) => `${i + 1}. ${row.word}（${row.reason}）`);
+    return withMaybeOpener(this.random, ["たからものアルバム", ...lines].join("\n"));
+  }
+
+  private async memoryQuiz(guildId: string): Promise<string> {
+    const [facts, snippets] = await Promise.all([
+      this.store.randomFacts(guildId, 10),
+      this.store.recentSnippets(guildId, 12)
+    ]);
+    const quiz = buildMemoryQuiz(this.random, facts, snippets);
+    if (!quiz) {
+      return withMaybeOpener(this.random, "まだおぼえてない。教えて");
+    }
+    return withMaybeOpener(this.random, quiz.text);
+  }
+
+  private attachmentReply(attachments?: { image: boolean; gif: boolean }): string {
+    if (attachments?.gif) {
+      return this.random.pick(["うごいてる。こわい", "うごいてる。みた", "ぐるぐる"]);
+    }
+    return this.random.pick(["まるい", "きれい", "食べたい", "みた", "なにこれ"]);
+  }
+
+  private async maybeIdleChatter(guildId: string, mood: Mood): Promise<string | null> {
+    const lastSpoke = await this.store.getLastSpokeAt(guildId);
+    if (!lastSpoke) return null;
+    const idleMs = this.config.idleChatterMinutes * 60 * 1000;
+    if (Date.now() - lastSpoke.getTime() < idleMs) return null;
+    if (!this.random.chance(this.config.idleChatterRate)) return null;
+    const options = [
+      "だれかいる",
+      "おやつしたい",
+      "さっきのこと忘れた",
+      `きょうは${dailySnack()}`,
+      `きぶんは${dailyMoodWord()}`
+    ];
+    if (mood === "sleepy") options.push("ねむい");
+    return withMaybeOpener(this.random, this.random.pick(options));
   }
 
   private wasCalled(text: string, options: ClassifierOptions): boolean {
     return this.config.botNames.some((name) => text.includes(name)) || Boolean(options.botUserId && text.includes(options.botUserId));
   }
 
-  private async shouldRandomlyTalk(guildId: string, text: string): Promise<boolean> {
-    const lastSpokeAt = await this.store.getLastSpokeAt(guildId);
-    if (lastSpokeAt) {
-      const elapsedSeconds = (Date.now() - lastSpokeAt.getTime()) / 1000;
-      if (elapsedSeconds < this.config.cooldownSeconds) return false;
-    }
-
-    const base = this.config.talkativeness === "quiet" ? 0.03 : this.config.talkativeness === "loud" ? 0.16 : 0.08;
-    const facts = await this.store.randomFacts(guildId, 12);
+  private async shouldRandomlyTalk(
+    guildId: string,
+    channelId: string,
+    userId: string,
+    text: string,
+    mood: Mood
+  ): Promise<boolean> {
+    const [guildLastSpokeAt, facts, snippets, users] = await Promise.all([
+      this.store.getLastSpokeAt(guildId),
+      this.store.randomFacts(guildId, 12),
+      this.store.recentSnippets(guildId, 12),
+      this.store.knownUsers(guildId, undefined, 20)
+    ]);
+    const currentUser = users.find((user) => user.userId === userId);
     const hasKnownWord = facts.some((fact) => text.includes(fact.subject) || text.includes(fact.predicate));
-    return this.random.chance(hasKnownWord ? base * 2.4 : base);
+    const input: InterjectInput = {
+      now: Date.now(),
+      talkativeness: this.config.talkativeness,
+      cooldownSeconds: this.config.cooldownSeconds,
+      channelCooldownSeconds: this.config.channelCooldownSeconds,
+      guildLastSpokeAt,
+      channelLastChatterAt: this.channelActivity.getLastChatterAt(channelId),
+      activityLevel: this.channelActivity.level(channelId),
+      userAffection: currentUser?.affection ?? 0,
+      hasKnownWord,
+      hasRecentSnippet: hasRecentSnippetMatch(text, snippets),
+      mood,
+      messageLength: text.length,
+      hasEmotion: hasEmotionInText(text),
+      activityBoostMax: this.config.activityBoostMax,
+      affectionTalkCap: this.config.affectionTalkCap,
+      chanceCap: this.config.chatterChanceCap
+    };
+    return shouldInterject(input, this.random);
   }
 
   private async generateChatter(guildId: string, currentUserId: string, text: string, mood: Mood): Promise<string> {
@@ -295,32 +662,36 @@ export class ResponsePlanner {
       ...this.makeDefaultChatter()
     ];
 
+    const seasonal = seasonalHint();
+    if (seasonal) choices.push(`${seasonal}かも`);
+    choices.push(`今日のおやつは${dailySnack()}`);
+
     if (facts.length > 0) {
       const fact = this.random.pick(facts);
-      choices.push(`はい\n${fact.subject}は${fact.predicate}`);
+      choices.push(formatFactAnswer(this.random, fact.subject, fact.predicate));
       choices.push(`${fact.predicate}は${fact.subject}？`);
       choices.push(`${fact.subject}、さっきいた`);
       choices.push(`${fact.predicate}のにおいする`);
     }
 
     if (treasures.length > 0 && this.random.chance(this.config.treasurePickRate * 2)) {
-      choices.push(`はい\n${this.random.pick(treasures).word}。たからもの`);
+      choices.push(`${this.random.pick(treasures).word}。たからもの`);
     }
 
     if (users.length > 0 && this.random.chance(this.config.wrongUserRate)) {
       const user = this.random.pick(users);
-      choices.push(`はい\n${user.displayName}もそうだよ`);
+      choices.push(`${user.displayName}もそうだよ`);
       choices.push(`${user.displayName}もえらい`);
     }
 
     if (snippets.length > 0) {
-      choices.push(`はい\n${this.random.pick(snippets)}`);
+      choices.push(this.random.pick(snippets));
       choices.push(`${this.random.pick(snippets)}ってなに`);
       choices.push(`${this.random.pick(snippets)}、いま通った`);
     }
 
     if (directSnippets.length > 0) {
-      choices.push(`はい\n${this.random.pick(directSnippets)}、おぼえた`);
+      choices.push(`${this.random.pick(directSnippets)}、おぼえた`);
       choices.push(`${this.random.pick(directSnippets)}すきかも`);
     }
 
@@ -332,29 +703,41 @@ export class ResponsePlanner {
   }
 
   private pokeReply(pokeCount: number): string {
-    if (pokeCount >= 6) return this.random.pick(["はい\nむ", "はい\nねる", "やめて"]);
-    if (pokeCount >= 3) return this.random.pick(["はい\nなに", "へへ", "つよい"]);
-    return this.random.pick(["はい", "はい\nへへ", "なに", "つん"]);
+    if (pokeCount >= 6) {
+      return withMaybeOpener(this.random, this.random.pick(["む", "ねる", "やめて"]));
+    }
+    if (pokeCount >= 3) {
+      return withMaybeOpener(this.random, this.random.pick(["なに", "へへ", "つよい"]));
+    }
+    return this.random.pick(["はい", "うん", "へへ", "なに", "つん"]);
   }
 
   private async maybeSaveTreasures(guildId: string, userId: string, snippets: string[], reason: string): Promise<void> {
+    const user = await this.store.getUser(guildId, userId);
+    const favoriteBoost = user && user.affection >= 10 ? 2 : 1;
     const candidates = snippets.filter((snippet) => snippet.length >= 2 && snippet.length <= 10);
     await Promise.all(
       candidates
-        .filter(() => this.random.chance(this.config.treasurePickRate))
+        .filter(() => this.random.chance(this.config.treasurePickRate * favoriteBoost))
         .map((snippet) => this.store.saveTreasure(guildId, snippet, userId, reason))
     );
   }
 
-  private async maybeAddWrongUser(guildId: string, currentUserId: string, text: string): Promise<string> {
-    if (!this.random.chance(this.config.wrongUserRate)) return text;
+  private async maybeAddWrongUser(
+    guildId: string,
+    currentUserId: string,
+    text: string,
+    currentUser?: KnownUserSummary | null
+  ): Promise<string> {
+    const bonus = currentUser ? wrongUserRateBonus(currentUser.affection) : 0;
+    if (!this.random.chance(this.config.wrongUserRate + bonus)) return text;
     const users = await this.store.knownUsers(guildId, currentUserId, 8);
     if (users.length === 0) return text;
     const user = this.random.pick(users);
     await this.store.markUserReferenced(guildId, user.userId);
     return this.random.pick([
       `${text}\n${user.displayName}もそうだよ`,
-      `はい\n${user.displayName}もそう`,
+      withMaybeOpener(this.random, `${user.displayName}もそう`),
       `${user.displayName}もたぶん`
     ]);
   }
@@ -367,13 +750,15 @@ export class ResponsePlanner {
     ]);
 
     const options = [
-      "はい\nうらなった。ねむい",
+      withMaybeOpener(this.random, "うらなった。ねむい"),
       "うらないは丸い",
       "きょうは右",
-      "はい\nおやつが吉",
+      withMaybeOpener(this.random, "おやつが吉"),
       await this.generateChatter(guildId, userId, text, mood),
       this.haiku.generate(facts, snippets),
-      treasures.length > 0 ? `はい\n${this.random.pick(treasures).word}が光ってる` : "はい\n光ってる"
+      treasures.length > 0
+        ? withMaybeOpener(this.random, `${this.random.pick(treasures).word}が光ってる`)
+        : withMaybeOpener(this.random, "光ってる")
     ];
 
     return this.random.pick(options);
@@ -384,7 +769,7 @@ export class ResponsePlanner {
       intentType === "mention" ? 0.6 :
       intentType === "question" ? 0.5 :
       intentType === "greeting" ? 1.2 :
-      intentType === "chatter" ? 1 :
+      intentType === "chatter" ? 0.5 :
       0;
     return multiplier > 0 && this.random.chance(this.config.silenceRate * multiplier);
   }
@@ -414,7 +799,7 @@ export class ResponsePlanner {
       `${thought}。${word}`,
       `${word}ってなに`,
       `${other}になった`,
-      `はい\n${word}`,
+      word,
       `${word}えらい`
     ];
   }

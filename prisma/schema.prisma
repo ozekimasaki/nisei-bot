@@ -41,11 +41,13 @@ model GuildState {
 }
 
 model JankenSession {
-  id        String   @id @default(cuid())
-  guildId   String
-  channelId String
-  userId    String
-  startedAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  guildId    String
+  channelId  String
+  userId     String
+  winStreak  Int      @default(0)
+  loseStreak Int      @default(0)
+  startedAt  DateTime @default(now())
 
   @@unique([guildId, channelId, userId])
   @@index([guildId, channelId])
@@ -116,4 +118,21 @@ model LearnedEmoji {
 
   @@unique([guildId, emoji])
   @@index([guildId, weight])
+}
+
+model HandledMessage {
+  messageId String   @id
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model QuietChannel {
+  guildId   String
+  channelId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([guildId, channelId])
+  @@index([guildId])
 }

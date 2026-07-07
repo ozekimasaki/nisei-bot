@@ -1,5 +1,6 @@
 import type { MemoryFact } from "./db.js";
 import type { RandomSource } from "./random.js";
+import { confusedAboutSubject, formatFactAnswer, formatFactAnswerWithConfidence, withMaybeOpener } from "./utterance.js";
 
 export type FactAnswer = {
   text: string;
@@ -17,12 +18,19 @@ export class ConfusionEngine {
     private readonly memoryMixRate: number
   ) {}
 
-  answerFact(subject: string, fact: MemoryFact | null, otherFacts: MemoryFact[]): FactAnswer {
+  answerFact(
+    subject: string,
+    fact: MemoryFact | null,
+    otherFacts: MemoryFact[],
+    overrides?: { memoryMixRate?: number }
+  ): FactAnswer {
+    const memoryMixRate = overrides?.memoryMixRate ?? this.memoryMixRate;
+
     if (!fact) {
-      if (otherFacts.length > 0 && this.random.chance(0.35)) {
+      if (otherFacts.length > 0 && this.random.chance(0.45)) {
         const other = this.random.pick(otherFacts);
         return {
-          text: `はい\n${subject}は${other.predicate}！ ちがう？`,
+          text: withMaybeOpener(this.random, `${subject}は${other.predicate}！ ちがう？`),
           misunderstanding: {
             subject,
             wrongPredicate: other.predicate,
@@ -30,13 +38,14 @@ export class ConfusionEngine {
           }
         };
       }
-      return { text: `はい\n${subject}しらない` };
+      const hints = otherFacts.map((item) => item.predicate);
+      return { text: withMaybeOpener(this.random, confusedAboutSubject(this.random, subject, hints)) };
     }
 
-    if (otherFacts.length > 0 && this.random.chance(this.memoryMixRate)) {
+    if (otherFacts.length > 0 && this.random.chance(memoryMixRate)) {
       const other = this.random.pick(otherFacts);
       return {
-        text: `はい\n${subject}は${other.predicate}。あ、${fact.predicate}？`,
+        text: withMaybeOpener(this.random, `${subject}は${other.predicate}。あ、${fact.predicate}？`),
         misunderstanding: {
           subject,
           wrongPredicate: other.predicate,
@@ -46,23 +55,36 @@ export class ConfusionEngine {
     }
 
     if (this.random.chance(this.confusionRate * 0.25)) {
-      return { text: `はい\n${subject}は${fact.predicate}。へへ` };
+      return {
+        text: withMaybeOpener(
+          this.random,
+          formatFactAnswer(this.random, subject, fact.predicate, true)
+        )
+      };
     }
 
-    return { text: `はい\n${subject}は${fact.predicate}` };
+    const confidence = fact.confidence;
+    if (confidence <= 2) {
+      return {
+        text: withMaybeOpener(this.random, formatFactAnswerWithConfidence(this.random, subject, fact.predicate, confidence))
+      };
+    }
+
+    return { text: withMaybeOpener(this.random, formatFactAnswer(this.random, subject, fact.predicate)) };
   }
 
-  maybeWrongGreeting(kind: "morning" | "night" | "home" | "other"): string {
+  maybeWrongGreeting(kind: "morning" | "night" | "home" | "other", sleepyBoost = 0): string {
+    let body: string;
     if (kind === "morning") {
-      return this.random.chance(0.45) ? "はい\nおやすみ" : "はい\nおはよ";
+      body = this.random.chance(0.45 + sleepyBoost) ? "おやすみ" : "おはよ";
+    } else if (kind === "night") {
+      body = this.random.chance(0.55 + sleepyBoost * 0.5) ? "おはよ" : "おやすみ";
+    } else if (kind === "home") {
+      body = this.random.chance(0.45) ? "いってらっしゃい" : "おかえり";
+    } else {
+      body = this.random.pick(["こんちは", "ばんは", "おはよ"]);
     }
-    if (kind === "night") {
-      return this.random.chance(0.55) ? "はい\nおはよ" : "はい\nおやすみ";
-    }
-    if (kind === "home") {
-      return this.random.chance(0.45) ? "はい\nいってらっしゃい" : "はい\nおかえり";
-    }
-    return this.random.pick(["はい\nこんちは", "はい\nばんは", "はい\nおはよ"]);
+    return withMaybeOpener(this.random, body);
   }
 
   mutate(text: string): string {
