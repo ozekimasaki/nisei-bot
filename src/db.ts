@@ -336,6 +336,26 @@ export class MemoryStore {
     return snippets.map((snippet) => snippet.text);
   }
 
+  async getGuildTalkLevel(guildId: string): Promise<number | null> {
+    const state = await this.db.guildState.findUnique({ where: { guildId } });
+    return state?.talkLevel ?? null;
+  }
+
+  async setGuildTalkLevel(guildId: string, level: number): Promise<void> {
+    await this.db.guildState.upsert({
+      where: { guildId },
+      update: { talkLevel: level },
+      create: { guildId, talkLevel: level }
+    });
+  }
+
+  async clearGuildTalkLevel(guildId: string): Promise<void> {
+    await this.db.guildState.updateMany({
+      where: { guildId },
+      data: { talkLevel: null }
+    });
+  }
+
   async getLastSpokeAt(guildId: string): Promise<Date | null> {
     const state = await this.db.guildState.findUnique({ where: { guildId } });
     return state?.lastSpokeAt ?? null;
@@ -368,6 +388,7 @@ export class MemoryStore {
     talkCount: number;
     learnCount: number;
     mood: string;
+    talkLevel: number | null;
   }> {
     const [memories, snippets, users, misunderstandings, treasures, emojis, state] = await Promise.all([
       this.db.guildMemory.count({ where: { guildId } }),
@@ -387,7 +408,8 @@ export class MemoryStore {
       emojis,
       talkCount: state?.talkCount ?? 0,
       learnCount: state?.learnCount ?? 0,
-      mood: state?.mood ?? "normal"
+      mood: state?.mood ?? "normal",
+      talkLevel: state?.talkLevel ?? null
     };
   }
 

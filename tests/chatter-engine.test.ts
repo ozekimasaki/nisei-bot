@@ -4,7 +4,7 @@ import {
   hasEmotionInText,
   hasRecentSnippetMatch,
   shouldInterject,
-  talkativenessBase,
+  talkLevelBase,
   type InterjectInput
 } from "../src/chatter-engine.js";
 import { SeededRandomSource } from "../src/random.js";
@@ -12,7 +12,7 @@ import { SeededRandomSource } from "../src/random.js";
 function baseInput(overrides: Partial<InterjectInput> = {}): InterjectInput {
   return {
     now: 1_000_000,
-    talkativeness: "normal",
+    talkLevel: 5,
     cooldownSeconds: 15,
     channelCooldownSeconds: 12,
     guildLastSpokeAt: null,
@@ -31,11 +31,17 @@ function baseInput(overrides: Partial<InterjectInput> = {}): InterjectInput {
   };
 }
 
-describe("talkativenessBase", () => {
-  it("returns conservative defaults per mode", () => {
-    expect(talkativenessBase("quiet")).toBe(0.05);
-    expect(talkativenessBase("normal")).toBe(0.1);
-    expect(talkativenessBase("loud")).toBe(0.2);
+describe("talkLevelBase", () => {
+  it("maps levels to linear base chance", () => {
+    expect(talkLevelBase(0)).toBe(0);
+    expect(talkLevelBase(1)).toBe(0.02);
+    expect(talkLevelBase(5)).toBe(0.1);
+    expect(talkLevelBase(10)).toBe(0.2);
+  });
+
+  it("clamps out-of-range values", () => {
+    expect(talkLevelBase(-1)).toBe(0);
+    expect(talkLevelBase(99)).toBe(0.2);
   });
 });
 
@@ -72,6 +78,11 @@ describe("computeInterjectChance", () => {
     expect(chance).toBe(0);
   });
 
+  it("returns zero when talk level is zero", () => {
+    const chance = computeInterjectChance(baseInput({ talkLevel: 0 }));
+    expect(chance).toBe(0);
+  });
+
   it("increases chance with activity level", () => {
     const quiet = computeInterjectChance(baseInput({ activityLevel: 0 }));
     const active = computeInterjectChance(baseInput({ activityLevel: 1 }));
@@ -87,7 +98,7 @@ describe("computeInterjectChance", () => {
   it("does not exceed the configured cap", () => {
     const chance = computeInterjectChance(
       baseInput({
-        talkativeness: "loud",
+        talkLevel: 10,
         activityLevel: 1,
         userAffection: 100,
         hasKnownWord: true,
@@ -117,12 +128,17 @@ describe("shouldInterject", () => {
     ).toBe(false);
   });
 
+  it("returns false when talk level is zero", () => {
+    const random = new SeededRandomSource(1);
+    expect(shouldInterject(baseInput({ talkLevel: 0 }), random)).toBe(false);
+  });
+
   it("returns true when chance is one and seed allows it", () => {
     const random = new SeededRandomSource(1);
     expect(
       shouldInterject(
         baseInput({
-          talkativeness: "loud",
+          talkLevel: 10,
           activityLevel: 1,
           chanceCap: 1
         }),

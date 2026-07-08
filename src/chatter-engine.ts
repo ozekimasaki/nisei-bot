@@ -1,10 +1,10 @@
-import type { Talkativeness } from "./config.js";
 import type { Mood } from "./mood.js";
 import type { RandomSource } from "./random.js";
+import { clampTalkLevel } from "./talk-level.js";
 
 export type InterjectInput = {
   now: number;
-  talkativeness: Talkativeness;
+  talkLevel: number;
   cooldownSeconds: number;
   channelCooldownSeconds: number;
   guildLastSpokeAt: Date | null;
@@ -21,15 +21,8 @@ export type InterjectInput = {
   chanceCap: number;
 };
 
-export function talkativenessBase(talkativeness: Talkativeness): number {
-  switch (talkativeness) {
-    case "quiet":
-      return 0.05;
-    case "loud":
-      return 0.2;
-    default:
-      return 0.1;
-  }
+export function talkLevelBase(level: number): number {
+  return clampTalkLevel(level) * 0.02;
 }
 
 export function hasEmotionInText(text: string): boolean {
@@ -59,7 +52,7 @@ export function computeInterjectChance(input: InterjectInput): number {
   if (isGuildCooldownActive(input)) return 0;
   if (isChannelCooldownActive(input)) return 0;
 
-  let chance = talkativenessBase(input.talkativeness);
+  let chance = talkLevelBase(input.talkLevel);
   chance += input.activityLevel * input.activityBoostMax;
   chance += Math.min(input.userAffection * 0.012, input.affectionTalkCap);
   if (input.hasKnownWord) chance *= 1.25;

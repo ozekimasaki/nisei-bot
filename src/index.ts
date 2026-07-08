@@ -137,6 +137,13 @@ async function handleCommand(interaction: ChatInputCommandInteraction): Promise<
         interaction.channelId,
         interaction.options.getBoolean("on", true)
       );
+    case "nisei_hatsugen": {
+      const reset = interaction.options.getBoolean("reset") ?? false;
+      if (reset) {
+        return responder.setTalkLevel(guildId, null);
+      }
+      return responder.setTalkLevel(guildId, interaction.options.getInteger("level", true));
+    }
     default:
       return "そのコマンド知らない。作った？";
   }

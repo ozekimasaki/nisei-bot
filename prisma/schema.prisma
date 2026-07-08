@@ -36,6 +36,7 @@ model GuildState {
   mood        String    @default("normal")
   talkCount   Int       @default(0)
   learnCount  Int       @default(0)
+  talkLevel   Int?
   lastSpokeAt DateTime?
   updatedAt   DateTime  @updatedAt
 }

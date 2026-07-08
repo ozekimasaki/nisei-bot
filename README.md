@@ -41,7 +41,8 @@ GUILD_ID=your-test-guild-id
 DATABASE_URL=postgresql://chisei:password@localhost:5432/chisei
 BOT_NAMES=にせい,偽性
 BOT_DISPLAY_NAME=にせい
-TALKATIVENESS=normal
+TALK_LEVEL=5
+# TALKATIVENESS=normal  # 非推奨。TALK_LEVEL 未設定時のフォールバック（quiet→3, normal→5, loud→10）
 CONFUSION_RATE=0.2
 MEMORY_MIX_RATE=0.15
 JANKEN_WIN_RATE=0.95
@@ -238,6 +239,8 @@ pm2 restart nisei-bot --update-env
 - `/nisei_quiz` … 記憶クイズ
 - `/nisei_janken` … じゃんけん開始
 - `/nisei_shizuka on:true/false` … このチャンネルを静かにする / 戻す
+- `/nisei_hatsugen level:0-10` … サーバー全体の発言レベル（0=黙る、5=ふつう、10=多め）
+- `/nisei_hatsugen level:5 reset:true` … 発言レベルを env デフォルトに戻す
 
 ### 反応するワード・パターン
 
@@ -331,6 +334,18 @@ pm2 restart nisei-bot --update-env
 
 静かモード中は `にせい` や `@メンション` で呼ばれたときだけ出ます。
 
+#### 発言レベル（サーバー単位）
+
+`/nisei_hatsugen level:N` で、呼ばれていないときの雑談介入確率をサーバーごとに変えられます。
+
+| レベル | 目安 |
+|---|---|
+| 0 | 完全黙り（呼ばれたら出る） |
+| 5 | ふつう（デフォルト、約10%） |
+| 10 | 多め（約20%） |
+
+`reset:true` で env の `TALK_LEVEL`（未設定時は `TALKATIVENESS`）に戻します。`/nisei_stats` に現在のレベルが表示されます。
+
 #### ツッコミ（直前ににせいが話したあと）
 
 | パターン | 例 |
@@ -345,7 +360,7 @@ pm2 restart nisei-bot --update-env
 
 #### 雑談への割り込み
 
-上記のどれにも当てはまらない普通の会話、および**呼ばれていないときの**挨拶・占い・俳句・つんつん・たからもの・図鑑・クイズ・画像・質問反応は、確率でだけ反応します（`TALKATIVENESS` や `CHATTER_CHANCE_CAP` で調整）。`にせい` や `@メンション` で呼ばれたときは、これらは通常どおり反応します。
+上記のどれにも当てはまらない普通の会話、および**呼ばれていないときの**挨拶・占い・俳句・つんつん・たからもの・図鑑・クイズ・画像・質問反応は、確率でだけ反応します（`TALK_LEVEL`（0〜10、デフォルト 5）や `CHATTER_CHANCE_CAP` で調整。サーバーごとは `/nisei_hatsugen` でも変更可）。`にせい` や `@メンション` で呼ばれたときは、これらは通常どおり反応します。
 
 `○○は××だよ` は呼びかけなしでも毎回反応します。`○○は？` のような質問は、`マジで？` のような普通の疑問文とは区別し、呼ばれていないときは確率でだけ反応します。
 

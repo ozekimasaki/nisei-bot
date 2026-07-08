@@ -57,5 +57,22 @@ export const slashCommands = [
         .setName("on")
         .setDescription("true=静かに / false=また話す")
         .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName("nisei_hatsugen")
+    .setDescription("このサーバーの発言レベルを変える（0=黙る、5=ふつう、10=多め）")
+    .addIntegerOption((option) =>
+      option
+        .setName("level")
+        .setDescription("0〜10")
+        .setRequired(true)
+        .setMinValue(0)
+        .setMaxValue(10)
+    )
+    .addBooleanOption((option) =>
+      option
+        .setName("reset")
+        .setDescription("true=デフォルトに戻す")
+        .setRequired(false)
     )
 ].map((command) => command.toJSON());

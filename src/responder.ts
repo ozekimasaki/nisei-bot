@@ -18,6 +18,7 @@ import { JankenGame } from "./janken.js";
 import { MoodEngine, parseMood, type Mood } from "./mood.js";
 import { PersonalityEngine } from "./personality.js";
 import { shouldBlockInQuietChannel } from "./quiet-channel.js";
+import { resolveTalkLevel } from "./talk-level.js";
 import { extractEmojis, extractSnippets, sanitizeFactPart, shouldLearnText } from "./phrase.js";
 import { buildMemoryQuiz, quizCaughtReply } from "./quiz.js";
 import type { RandomSource } from "./random.js";
@@ -336,7 +337,8 @@ export class ResponsePlanner {
       "・静かに、でこのチャンネル黙る",
       "・静かにやめて、出てきて、でまた出る",
       "・静か中はにせいって呼べば出る",
-      "・/nisei_shizuka on:true/false、でも切り替え"
+      "・/nisei_shizuka on:true/false、でも切り替え",
+      "・/nisei_hatsugen level:0〜10、でサーバー全体の発言レベル"
     ].join("\n");
   }
 
@@ -349,8 +351,24 @@ export class ResponsePlanner {
     return "また普通に出る";
   }
 
+  async setTalkLevel(guildId: string, level: number | null): Promise<string> {
+    if (level === null) {
+      await this.store.clearGuildTalkLevel(guildId);
+      return "もとの設定に戻した";
+    }
+    const clamped = Math.min(10, Math.max(0, Math.round(level)));
+    await this.store.setGuildTalkLevel(guildId, clamped);
+    if (clamped === 0) return "発言レベル0。呼んだら出る";
+    return `発言レベル${clamped}にした`;
+  }
+
   async stats(guildId: string): Promise<string> {
     const stats = await this.store.stats(guildId);
+    const effectiveTalkLevel = resolveTalkLevel(stats.talkLevel, this.config.defaultTalkLevel);
+    const talkLevelLabel =
+      stats.talkLevel === null
+        ? `発言レベル: ${effectiveTalkLevel}（デフォルト）`
+        : `発言レベル: ${effectiveTalkLevel}`;
     return [
       `記憶: ${stats.memories}`,
       `ことば: ${stats.snippets}`,
@@ -361,6 +379,7 @@ export class ResponsePlanner {
       `発言: ${stats.talkCount}`,
       `学習: ${stats.learnCount}`,
       `きぶん: ${stats.mood}`,
+      talkLevelLabel,
       `今日のおやつ: ${dailySnack()}`,
       `きょうの気分: ${dailyMoodWord()}`
     ].join("\n");
@@ -597,6 +616,9 @@ export class ResponsePlanner {
   }
 
   private async maybeIdleChatter(guildId: string, mood: Mood): Promise<string | null> {
+    const talkLevel = await this.resolveGuildTalkLevel(guildId);
+    if (talkLevel === 0) return null;
+
     const lastSpoke = await this.store.getLastSpokeAt(guildId);
     if (!lastSpoke) return null;
     const idleMs = this.config.idleChatterMinutes * 60 * 1000;
@@ -617,6 +639,11 @@ export class ResponsePlanner {
     return this.config.botNames.some((name) => text.includes(name)) || Boolean(options.botUserId && text.includes(options.botUserId));
   }
 
+  private async resolveGuildTalkLevel(guildId: string): Promise<number> {
+    const guildLevel = await this.store.getGuildTalkLevel(guildId);
+    return resolveTalkLevel(guildLevel, this.config.defaultTalkLevel);
+  }
+
   private async shouldRandomlyTalk(
     guildId: string,
     channelId: string,
@@ -624,6 +651,9 @@ export class ResponsePlanner {
     text: string,
     mood: Mood
   ): Promise<boolean> {
+    const talkLevel = await this.resolveGuildTalkLevel(guildId);
+    if (talkLevel === 0) return false;
+
     const [guildLastSpokeAt, facts, snippets, users] = await Promise.all([
       this.store.getLastSpokeAt(guildId),
       this.store.randomFacts(guildId, 12),
@@ -634,7 +664,7 @@ export class ResponsePlanner {
     const hasKnownWord = facts.some((fact) => text.includes(fact.subject) || text.includes(fact.predicate));
     const input: InterjectInput = {
       now: Date.now(),
-      talkativeness: this.config.talkativeness,
+      talkLevel,
       cooldownSeconds: this.config.cooldownSeconds,
       channelCooldownSeconds: this.config.channelCooldownSeconds,
       guildLastSpokeAt,

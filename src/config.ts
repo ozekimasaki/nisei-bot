@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+import { talkLevelFromTalkativeness } from "./talk-level.js";
+
 export type Talkativeness = "quiet" | "normal" | "loud";
 
 export type AppConfig = {
@@ -9,6 +11,7 @@ export type AppConfig = {
   botDisplayName?: string;
   botNames: string[];
   talkativeness: Talkativeness;
+  defaultTalkLevel: number;
   confusionRate: number;
   memoryMixRate: number;
   jankenWinRate: number;
@@ -61,11 +64,27 @@ function talkativenessEnv(): Talkativeness {
   throw new Error("TALKATIVENESS must be quiet, normal, or loud");
 }
 
+function defaultTalkLevelEnv(talkativeness: Talkativeness): number {
+  if (process.env.TALK_LEVEL !== undefined) {
+    const parsed = Number(process.env.TALK_LEVEL);
+    if (!Number.isFinite(parsed)) {
+      throw new Error("TALK_LEVEL must be a number");
+    }
+    if (parsed < 0 || parsed > 10) {
+      throw new Error("TALK_LEVEL must be between 0 and 10");
+    }
+    return Math.round(parsed);
+  }
+  return talkLevelFromTalkativeness(talkativeness);
+}
+
 export function loadConfig(): AppConfig {
   const botNames = (process.env.BOT_NAMES ?? "にせい,偽性")
     .split(",")
     .map((name) => name.trim())
     .filter(Boolean);
+
+  const talkativeness = talkativenessEnv();
 
   return {
     discordToken: requiredEnv("DISCORD_TOKEN"),
@@ -73,7 +92,8 @@ export function loadConfig(): AppConfig {
     guildId: process.env.GUILD_ID || undefined,
     botDisplayName: process.env.BOT_DISPLAY_NAME || undefined,
     botNames,
-    talkativeness: talkativenessEnv(),
+    talkativeness,
+    defaultTalkLevel: defaultTalkLevelEnv(talkativeness),
     confusionRate: numberEnv("CONFUSION_RATE", 0.2),
     memoryMixRate: numberEnv("MEMORY_MIX_RATE", 0.15),
     jankenWinRate: numberEnv("JANKEN_WIN_RATE", 0.95),
