@@ -116,9 +116,19 @@ pm2 restart nisei-bot
 
 `pm2 start` で `Script not found: dist/index.js` になる場合は、**ビルド未実行**が原因。`npm run build` を先に実行する。
 
-## コミット
+## コミット・プッシュ
 
-リポジトリオーナーの規約に従い、コミットメッセージは日本語:
+実装タスクを完了したら、**コミット作成後に必ずリモートへ push する**。コミットだけで作業を終えない。
+
+### 手順
+
+1. `npm test` が通ることを確認する
+2. 変更をステージしてコミットする
+3. `git push` する（新規ブランチなら `git push -u origin HEAD`）
+
+### コミットメッセージ
+
+リポジトリオーナーの規約に従い、日本語で書く:
 
 ```
 <type>(<scope>): <概要>
@@ -128,6 +138,12 @@ pm2 restart nisei-bot
 
 タイプ例: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
+### push 時の注意
+
+- コミット対象の変更がない場合は push 不要
+- `main` / `master` への force push は禁止
+- push が失敗したら原因を確認し、解決するかユーザーに報告する
+
 ## 変更時のチェックリスト
 
 1. `npm test` が通る
@@ -136,6 +152,7 @@ pm2 restart nisei-bot
 4. スラッシュコマンドを触ったら `deploy:commands` を README に追記するか、PR 説明に明記
 5. 本番影響がある変更は README の該当セクション（Setup / pm2）と整合しているか確認
 6. 変更範囲は最小限。無関係なリファクタやフォーマット変更を混ぜない
+7. コミットしたら **必ず `git push` する**（新規ブランチは `git push -u origin HEAD`）
 
 ## 参考
 
