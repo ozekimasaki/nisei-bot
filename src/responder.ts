@@ -19,7 +19,7 @@ import { MoodEngine, parseMood, type Mood } from "./mood.js";
 import { PersonalityEngine } from "./personality.js";
 import { shouldBlockInQuietChannel } from "./quiet-channel.js";
 import { resolveTalkLevel } from "./talk-level.js";
-import { extractEmojis, extractSnippets, sanitizeFactPart, shouldLearnText } from "./phrase.js";
+import { extractEmojis, extractSnippets, type NormalizeMemoryOptions, normalizeMemoryWord, shouldLearnText } from "./phrase.js";
 import { buildMemoryQuiz, quizCaughtReply } from "./quiz.js";
 import type { RandomSource } from "./random.js";
 import { needsUnsolicitedChance } from "./unsolicited.js";
@@ -100,9 +100,12 @@ export class ResponsePlanner {
     const previousMood = parseMood(await this.store.getGuildMood(input.guildId));
     const mood = this.mood.nextMood(input.content, previousMood);
     await this.store.rememberUser(input.guildId, input.userId, this.cleanDisplayName(input.displayName));
+    const memoryOptions = await this.buildMemoryOptions(input.guildId);
 
     if (shouldLearnText(input.content)) {
-      const snippets = extractSnippets(input.content);
+      const snippets = extractSnippets(input.content, memoryOptions)
+        .map((snippet) => normalizeMemoryWord(snippet, memoryOptions))
+        .filter((snippet): snippet is string => snippet !== null);
       const emojis = extractEmojis(input.content);
       await Promise.all(snippets.map((snippet) => this.store.saveSnippet(input.guildId, input.userId, snippet)));
       await this.store.saveEmojis(input.guildId, input.userId, emojis);
@@ -162,8 +165,8 @@ export class ResponsePlanner {
 
     switch (intent.type) {
       case "teach": {
-        const subject = sanitizeFactPart(intent.subject);
-        const predicate = sanitizeFactPart(intent.predicate);
+        const subject = normalizeMemoryWord(intent.subject, { ...memoryOptions, preferDictionary: true });
+        const predicate = normalizeMemoryWord(intent.predicate, memoryOptions);
         if (!subject || !predicate) return { shouldReply: false };
         await this.store.remember(input.guildId, subject, predicate);
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate * 2);
@@ -176,8 +179,8 @@ export class ResponsePlanner {
         return this.reply(input, await this.finishText(input.guildId, withMaybeOpener(this.random, learned), 0.1), mood, subject);
       }
       case "denyTeach": {
-        const subject = sanitizeFactPart(intent.subject);
-        const predicate = sanitizeFactPart(intent.predicate);
+        const subject = normalizeMemoryWord(intent.subject, { ...memoryOptions, preferDictionary: true });
+        const predicate = normalizeMemoryWord(intent.predicate, memoryOptions);
         if (!subject || !predicate) return { shouldReply: false };
         await this.store.saveMisunderstanding(input.guildId, subject, predicate);
         await this.store.corruptMemory(input.guildId, subject, predicate);
@@ -190,7 +193,7 @@ export class ResponsePlanner {
         );
       }
       case "question": {
-        const subject = sanitizeFactPart(intent.subject);
+        const subject = normalizeMemoryWord(intent.subject, memoryOptions) ?? intent.subject.trim().slice(0, 12);
         const text = await this.answerQuestion(input, subject, mood);
         await this.store.markSpoke(input.guildId, mood);
         return this.reply(input, text, mood, subject);
@@ -386,7 +389,9 @@ export class ResponsePlanner {
   }
 
   async forget(guildId: string, subject: string): Promise<string> {
-    const removed = await this.store.forget(guildId, sanitizeFactPart(subject));
+    const memoryOptions = await this.buildMemoryOptions(guildId);
+    const key = normalizeMemoryWord(subject, memoryOptions) ?? subject.trim().slice(0, 12);
+    const removed = await this.store.forget(guildId, key);
     return removed
       ? withMaybeOpener(this.random, this.random.pick([`${subject}わすれた`, `え、なんで忘れるの。${subject}わすれた`]))
       : withMaybeOpener(this.random, confusedAboutSubject(this.random, subject));
@@ -684,16 +689,19 @@ export class ResponsePlanner {
   }
 
   private async generateChatter(guildId: string, currentUserId: string, text: string, mood: Mood): Promise<string> {
-    const [facts, snippets, treasures, users, currentUsers, emojis] = await Promise.all([
+    const [facts, snippets, treasures, users, currentUsers, emojis, memoryOptions] = await Promise.all([
       this.store.randomFacts(guildId, 10),
       this.store.recentSnippets(guildId, 12),
       this.store.treasures(guildId, 8),
       this.store.knownUsers(guildId, currentUserId, 10),
       this.store.knownUsers(guildId, undefined, 20),
-      this.store.learnedEmojis(guildId, 20)
+      this.store.learnedEmojis(guildId, 20),
+      this.buildMemoryOptions(guildId)
     ]);
     const currentUser = currentUsers.find((user) => user.userId === currentUserId);
-    const directSnippets = extractSnippets(text);
+    const directSnippets = extractSnippets(text, memoryOptions)
+      .map((snippet) => normalizeMemoryWord(snippet, memoryOptions))
+      .filter((snippet): snippet is string => snippet !== null);
     const personalityContext = { mood, currentUser, facts, snippets, treasures, directSnippets, emojis };
 
     const choices: string[] = [
@@ -824,6 +832,14 @@ export class ResponsePlanner {
 
   private cleanDisplayName(displayName: string): string {
     return displayName.replace(/[@#:`*_~<>|\\]/gu, "").trim().slice(0, 40) || "だれか";
+  }
+
+  private async buildMemoryOptions(guildId: string): Promise<NormalizeMemoryOptions> {
+    const hints = await this.store.knownWordHints(guildId);
+    return {
+      hints,
+      segmentFallback: this.config.wordSegmentFallback
+    };
   }
 
   private makeDefaultChatter(): string[] {

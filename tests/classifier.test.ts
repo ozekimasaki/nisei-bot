@@ -12,6 +12,11 @@ describe("classifyMessage", () => {
     });
   });
 
+  test("treats overly long teach messages as chatter", () => {
+    const longPredicate = "あ".repeat(41);
+    expect(classifyMessage(`りんごは${longPredicate}だよ`, options)).toEqual({ type: "chatter" });
+  });
+
   test("classifies questions", () => {
     expect(classifyMessage("りんごは？", options)).toEqual({
       type: "question",

@@ -205,7 +205,17 @@ npm ci
 npm run db:generate
 npx prisma migrate deploy
 npm run build
+npm run db:normalize-memories
+npm run db:normalize-memories:apply
 pm2 restart nisei-bot
+```
+
+単語記憶のルール更新後は、既存 DB に長文が残っている場合があります。本番反映前に `npm run db:normalize-memories` で dry-run 確認し、問題なければ `npm run db:normalize-memories:apply` を実行してください。破壊的変更になりうるため、可能なら `pg_dump` でバックアップを取ってから apply してください。
+
+guild 単位で試す例:
+
+```bash
+npm run db:normalize-memories -- --guild YOUR_GUILD_ID --verbose
 ```
 
 ### 8. Stop / restart

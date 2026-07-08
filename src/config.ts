@@ -30,6 +30,7 @@ export type AppConfig = {
   chatterChanceCap: number;
   moodPersistRate: number;
   tsukkomiResponseRate: number;
+  wordSegmentFallback: boolean;
   wikiEnabled: boolean;
   wikiFallbackRate: number;
   wikiWrongResultRate: number;
@@ -112,6 +113,7 @@ export function loadConfig(): AppConfig {
     chatterChanceCap: numberEnv("CHATTER_CHANCE_CAP", 0.3),
     moodPersistRate: numberEnv("MOOD_PERSIST_RATE", 0.65),
     tsukkomiResponseRate: numberEnv("TSUKKOMI_RESPONSE_RATE", 0.8),
+    wordSegmentFallback: (process.env.WORD_SEGMENT_FALLBACK ?? "true") !== "false",
     wikiEnabled: (process.env.WIKI_ENABLED ?? "true") !== "false",
     wikiFallbackRate: numberEnv("WIKI_FALLBACK_RATE", 0.05),
     wikiWrongResultRate: numberEnv("WIKI_WRONG_RESULT_RATE", 0.3),

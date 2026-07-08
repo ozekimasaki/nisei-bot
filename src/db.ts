@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client";
+import { MAX_MEMORY_WORD_LENGTH } from "./phrase.js";
 
 export const prisma = new PrismaClient();
 
@@ -32,19 +33,21 @@ export class MemoryStore {
   constructor(private readonly db: PrismaClient) {}
 
   async remember(guildId: string, subject: string, predicate: string): Promise<number> {
+    const normalizedSubject = subject.slice(0, MAX_MEMORY_WORD_LENGTH);
+    const normalizedPredicate = predicate.slice(0, MAX_MEMORY_WORD_LENGTH);
     const existing = await this.db.guildMemory.findUnique({
-      where: { guildId_subject: { guildId, subject } }
+      where: { guildId_subject: { guildId, subject: normalizedSubject } }
     });
     const confidence = existing ? existing.confidence + 1 : 1;
 
     await this.db.$transaction([
       this.db.guildMemory.upsert({
-        where: { guildId_subject: { guildId, subject } },
-        update: { predicate, confidence },
-        create: { guildId, subject, predicate, confidence: 1 }
+        where: { guildId_subject: { guildId, subject: normalizedSubject } },
+        update: { predicate: normalizedPredicate, confidence },
+        create: { guildId, subject: normalizedSubject, predicate: normalizedPredicate, confidence: 1 }
       }),
       this.db.misunderstanding.updateMany({
-        where: { guildId, subject },
+        where: { guildId, subject: normalizedSubject },
         data: { weight: { decrement: 0.25 } }
       }),
       this.db.guildState.upsert({
@@ -101,10 +104,12 @@ export class MemoryStore {
   }
 
   async corruptMemory(guildId: string, subject: string, wrongPredicate: string): Promise<void> {
+    const normalizedSubject = subject.slice(0, MAX_MEMORY_WORD_LENGTH);
+    const normalizedPredicate = wrongPredicate.slice(0, MAX_MEMORY_WORD_LENGTH);
     await this.db.guildMemory.upsert({
-      where: { guildId_subject: { guildId, subject } },
-      update: { predicate: wrongPredicate, confidence: 1 },
-      create: { guildId, subject, predicate: wrongPredicate, confidence: 1 }
+      where: { guildId_subject: { guildId, subject: normalizedSubject } },
+      update: { predicate: normalizedPredicate, confidence: 1 },
+      create: { guildId, subject: normalizedSubject, predicate: normalizedPredicate, confidence: 1 }
     });
   }
 
@@ -134,11 +139,13 @@ export class MemoryStore {
   }
 
   async saveSnippet(guildId: string, userId: string, text: string): Promise<void> {
+    const word = text.trim().slice(0, MAX_MEMORY_WORD_LENGTH);
+    if (word.length < 2) return;
     await this.db.messageSnippet.create({
       data: {
         guildId,
         userId,
-        text: text.slice(0, 80),
+        text: word,
         weight: 1
       }
     });
@@ -244,9 +251,9 @@ export class MemoryStore {
     await this.db.misunderstanding.create({
       data: {
         guildId,
-        subject: subject.slice(0, 60),
-        wrongPredicate: wrongPredicate.slice(0, 80),
-        sourcePredicate: sourcePredicate?.slice(0, 80),
+        subject: subject.slice(0, MAX_MEMORY_WORD_LENGTH),
+        wrongPredicate: wrongPredicate.slice(0, MAX_MEMORY_WORD_LENGTH),
+        sourcePredicate: sourcePredicate?.slice(0, MAX_MEMORY_WORD_LENGTH),
         weight: 1
       }
     });
@@ -278,7 +285,7 @@ export class MemoryStore {
   }
 
   async saveTreasure(guildId: string, word: string, sourceUserId: string | null, reason: string): Promise<void> {
-    const normalized = word.trim().slice(0, 40);
+    const normalized = word.trim().slice(0, MAX_MEMORY_WORD_LENGTH);
     if (normalized.length < 2) return;
     await this.db.treasureWord.upsert({
       where: { guildId_word: { guildId, word: normalized } },
@@ -309,6 +316,27 @@ export class MemoryStore {
       reason: row.reason,
       weight: row.weight
     }));
+  }
+
+  async knownWordHints(guildId: string, limit = 40): Promise<string[]> {
+    const [memories, treasures] = await Promise.all([
+      this.db.guildMemory.findMany({
+        where: { guildId },
+        select: { subject: true, predicate: true },
+        orderBy: { updatedAt: "desc" },
+        take: limit * 2
+      }),
+      this.db.treasureWord.findMany({
+        where: { guildId },
+        select: { word: true },
+        orderBy: { weight: "desc" },
+        take: limit
+      })
+    ]);
+
+    return [...new Set([...memories.flatMap((memory) => [memory.subject, memory.predicate]), ...treasures.map((treasure) => treasure.word)])]
+      .filter((word) => word.length >= 2 && word.length <= MAX_MEMORY_WORD_LENGTH)
+      .slice(0, limit);
   }
 
   async poke(guildId: string, userId: string): Promise<number> {

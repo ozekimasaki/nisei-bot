@@ -71,7 +71,7 @@ export function classifyMessage(text: string, options: ClassifierOptions): Messa
     if (query) return { type: "wikiSearch", query };
   }
 
-  const denyTeach = normalized.match(/^(.{1,40}?)[はって]([^?？]{1,100}?)じゃない(?:よ|ぞ)?[。.!！]*$/u);
+  const denyTeach = normalized.match(/^(.{1,24}?)[はって]([^?？]{1,40}?)じゃない(?:よ|ぞ)?[。.!！]*$/u);
   if (denyTeach) {
     return {
       type: "denyTeach",
@@ -80,7 +80,7 @@ export function classifyMessage(text: string, options: ClassifierOptions): Messa
     };
   }
 
-  const teach = normalized.match(/^(.{1,40}?)[はって]([^?？]{1,100}?)(?:だよ|です|だ|なの|やで|だね)[。.!！]*$/u);
+  const teach = normalized.match(/^(.{1,24}?)[はって]([^?？]{1,40}?)(?:だよ|です|だ|なの|やで|だね)[。.!！]*$/u);
   if (teach) {
     return {
       type: "teach",
