@@ -245,35 +245,46 @@ function printSummary(label: string, beforeCount: number, plans: Array<{ kind: s
 }
 
 async function applyGuildMemoryPlans(plans: GuildMemoryPlan[]): Promise<void> {
-  await prisma.$transaction([
-    ...plans.flatMap((plan) => {
-      switch (plan.kind) {
-        case "keep":
-          return [];
-        case "update":
-          return [
-            prisma.guildMemory.update({
-              where: { id: plan.id },
-              data: plan.after
-            })
-          ];
-        case "delete":
-          return [prisma.guildMemory.deleteMany({ where: { id: plan.id } })];
-        case "merge":
-          return [
-            prisma.guildMemory.update({
-              where: { id: plan.intoId },
-              data: plan.after
-            }),
-            prisma.guildMemory.deleteMany({
-              where: { id: { in: plan.mergeIds } }
-            })
-          ];
-        default:
-          return [];
+  const deletes: ReturnType<typeof prisma.guildMemory.deleteMany>[] = [];
+  const updates: ReturnType<typeof prisma.guildMemory.update>[] = [];
+  const merges: Array<
+    ReturnType<typeof prisma.guildMemory.deleteMany> | ReturnType<typeof prisma.guildMemory.update>
+  > = [];
+
+  for (const plan of plans) {
+    switch (plan.kind) {
+      case "keep":
+        break;
+      case "update":
+        updates.push(
+          prisma.guildMemory.update({
+            where: { id: plan.id },
+            data: plan.after
+          })
+        );
+        break;
+      case "delete":
+        deletes.push(prisma.guildMemory.deleteMany({ where: { id: plan.id } }));
+        break;
+      case "merge":
+        merges.push(
+          prisma.guildMemory.deleteMany({
+            where: { id: { in: plan.mergeIds } }
+          }),
+          prisma.guildMemory.update({
+            where: { id: plan.intoId },
+            data: plan.after
+          })
+        );
+        break;
+      default: {
+        const _exhaustive: never = plan;
+        throw new Error(`unknown GuildMemoryPlan kind: ${(_exhaustive as GuildMemoryPlan).kind}`);
       }
-    })
-  ]);
+    }
+  }
+
+  await prisma.$transaction([...deletes, ...updates, ...merges]);
 }
 
 async function applyMessageSnippetPlans(plans: MessageSnippetPlan[]): Promise<void> {
@@ -299,67 +310,90 @@ async function applyMessageSnippetPlans(plans: MessageSnippetPlan[]): Promise<vo
 }
 
 async function applyTreasurePlans(plans: TreasureWordPlan[]): Promise<void> {
-  await prisma.$transaction([
-    ...plans.flatMap((plan) => {
-      switch (plan.kind) {
-        case "keep":
-          return [];
-        case "update":
-          return [
-            prisma.treasureWord.update({
-              where: { id: plan.id },
-              data: plan.after
-            })
-          ];
-        case "delete":
-          return [prisma.treasureWord.deleteMany({ where: { id: plan.id } })];
-        case "merge":
-          return [
-            prisma.treasureWord.update({
-              where: { id: plan.intoId },
-              data: { word: plan.after.word, weight: plan.after.weight }
-            }),
-            prisma.treasureWord.deleteMany({
-              where: { id: { in: plan.mergeIds } }
-            })
-          ];
-        default:
-          return [];
+  const deletes: ReturnType<typeof prisma.treasureWord.deleteMany>[] = [];
+  const updates: ReturnType<typeof prisma.treasureWord.update>[] = [];
+  const merges: Array<
+    ReturnType<typeof prisma.treasureWord.deleteMany> | ReturnType<typeof prisma.treasureWord.update>
+  > = [];
+
+  for (const plan of plans) {
+    switch (plan.kind) {
+      case "keep":
+        break;
+      case "update":
+        updates.push(
+          prisma.treasureWord.update({
+            where: { id: plan.id },
+            data: plan.after
+          })
+        );
+        break;
+      case "delete":
+        deletes.push(prisma.treasureWord.deleteMany({ where: { id: plan.id } }));
+        break;
+      case "merge":
+        merges.push(
+          prisma.treasureWord.deleteMany({
+            where: { id: { in: plan.mergeIds } }
+          }),
+          prisma.treasureWord.update({
+            where: { id: plan.intoId },
+            data: { word: plan.after.word, weight: plan.after.weight }
+          })
+        );
+        break;
+      default: {
+        const _exhaustive: never = plan;
+        throw new Error(`unknown TreasureWordPlan kind: ${(_exhaustive as TreasureWordPlan).kind}`);
       }
-    })
-  ]);
+    }
+  }
+
+  await prisma.$transaction([...deletes, ...updates, ...merges]);
 }
 
 async function applyMisunderstandingPlans(plans: MisunderstandingPlan[]): Promise<void> {
-  await prisma.$transaction([
-    ...plans.flatMap((plan) => {
-      switch (plan.kind) {
-        case "keep":
-          return [];
-        case "update":
-          return [
-            prisma.misunderstanding.update({
-              where: { id: plan.id },
-              data: plan.after
-            })
-          ];
-        case "delete":
-          return [prisma.misunderstanding.deleteMany({ where: { id: plan.id } })];
-        case "merge":
-          return [
-            prisma.misunderstanding.update({
-              where: { id: plan.intoId },
-              data: plan.after
-            }),
-            prisma.misunderstanding.deleteMany({
-              where: { id: { in: plan.mergeIds } }
-            })
-          ];
-        default:
-          return [];
+  const deletes: ReturnType<typeof prisma.misunderstanding.deleteMany>[] = [];
+  const updates: ReturnType<typeof prisma.misunderstanding.update>[] = [];
+  const merges: Array<
+    | ReturnType<typeof prisma.misunderstanding.deleteMany>
+    | ReturnType<typeof prisma.misunderstanding.update>
+  > = [];
+
+  for (const plan of plans) {
+    switch (plan.kind) {
+      case "keep":
+        break;
+      case "update":
+        updates.push(
+          prisma.misunderstanding.update({
+            where: { id: plan.id },
+            data: plan.after
+          })
+        );
+        break;
+      case "delete":
+        deletes.push(prisma.misunderstanding.deleteMany({ where: { id: plan.id } }));
+        break;
+      case "merge":
+        merges.push(
+          prisma.misunderstanding.deleteMany({
+            where: { id: { in: plan.mergeIds } }
+          }),
+          prisma.misunderstanding.update({
+            where: { id: plan.intoId },
+            data: plan.after
+          })
+        );
+        break;
+      default: {
+        const _exhaustive: never = plan;
+        throw new Error(`unknown MisunderstandingPlan kind: ${(_exhaustive as MisunderstandingPlan).kind}`);
       }
-    })
-  ]);
+    }
+  }
+
+  await prisma.$transaction([...deletes, ...updates, ...merges]);
 }
 
 main()

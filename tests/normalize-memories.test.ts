@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   planGuildMemoryBatch,
   planMessageSnippetBatch,
+  planTreasureWordBatch,
   summarizePlans
 } from "../src/normalize-memories.js";
 
@@ -57,6 +58,34 @@ describe("planGuildMemoryBatch", () => {
     ]);
 
     expect(plans.some((plan) => plan.kind === "merge")).toBe(true);
+  });
+});
+
+describe("planTreasureWordBatch", () => {
+  test("merges rows that normalize to the same word", () => {
+    const plans = planTreasureWordBatch([
+      {
+        id: "keeper",
+        guildId: "g1",
+        word: "とてもねむい",
+        weight: 10
+      },
+      {
+        id: "duplicate",
+        guildId: "g1",
+        word: "ねむい",
+        weight: 3
+      }
+    ]);
+
+    const merge = plans.find((plan) => plan.kind === "merge");
+    expect(merge).toMatchObject({
+      kind: "merge",
+      intoId: "keeper",
+      mergeIds: ["duplicate"],
+      after: { word: "ねむい", weight: 13 }
+    });
+    expect(plans.some((plan) => plan.kind === "update" && plan.id === "keeper")).toBe(false);
   });
 });
 
