@@ -1,5 +1,170 @@
 import { defaultOpeners, defaultThoughts, defaultWords } from "./default-brain.js";
+import type { Mood } from "./mood.js";
 import type { RandomSource } from "./random.js";
+
+const shortLearnedReplies = [
+  "うん！",
+  "うんっ",
+  "わかった！",
+  "わかった",
+  "おぼえた",
+  "おぼえた！",
+  "メモした",
+  "頭に入った",
+  "へへ",
+  "はいっ",
+  "はーい",
+  "えへん",
+  "なるほど",
+  "そうなんだ"
+] as const;
+
+const shortDeniedReplies = [
+  "うん、ちがう",
+  "わかった、じゃない",
+  "おぼえた。じゃない方",
+  "へへ、ちがう",
+  "うん、そうじゃない",
+  "わかった、じゃない方"
+] as const;
+
+function buildShortLearnedTemplates(mood: Mood, confidence: number): string[] {
+  const pool = [...shortLearnedReplies];
+
+  if (confidence > 1) {
+    pool.push("もう知ってる", "また教えてくれた");
+  }
+
+  switch (mood) {
+    case "proud":
+      pool.push("えへん！", "できた");
+      break;
+    case "sleepy":
+      pool.push("ねむいけどおぼえた", "zzz…わかった");
+      break;
+    case "genki":
+      pool.push("つよい！", "いける！");
+      break;
+    case "confused":
+      pool.push("たぶんわかった", "え、そうなの");
+      break;
+    default:
+      break;
+  }
+
+  return pool;
+}
+
+function buildEchoLearnedTemplates(
+  subject: string,
+  predicate: string,
+  mood: Mood,
+  confidence: number
+): string[] {
+  const pool = [
+    `${subject}は${predicate}。おぼえた`,
+    `${subject}、${predicate}だよ`,
+    `${predicate}。${subject}の`
+  ];
+
+  if (confidence > 1) {
+    pool.push(`もう知ってる。${subject}は${predicate}`, `また教えてくれた。${subject}は${predicate}`);
+  }
+
+  switch (mood) {
+    case "proud":
+      pool.push(`${subject}は${predicate}。えへん`);
+      break;
+    case "sleepy":
+      pool.push(`${subject}…${predicate}…おぼえた`);
+      break;
+    case "confused":
+      pool.push(`${subject}は${predicate}かも。たぶん`);
+      break;
+    case "genki":
+      pool.push(`${subject}は${predicate}！！つよい`);
+      break;
+    default:
+      break;
+  }
+
+  return pool;
+}
+
+function buildShortDeniedTemplates(mood: Mood): string[] {
+  const pool = [...shortDeniedReplies];
+
+  switch (mood) {
+    case "proud":
+      pool.push("えへん、ちがう");
+      break;
+    case "sleepy":
+      pool.push("ねむいけど、じゃない");
+      break;
+    case "genki":
+      pool.push("ちがう！！");
+      break;
+    case "confused":
+      pool.push("たぶん、じゃない");
+      break;
+    default:
+      break;
+  }
+
+  return pool;
+}
+
+function buildEchoDeniedTemplates(subject: string, predicate: string, mood: Mood): string[] {
+  const pool = [
+    `${subject}は${predicate}じゃない。おぼえた`,
+    `${subject}、${predicate}じゃない`,
+    `じゃない。${subject}は${predicate}じゃない`
+  ];
+
+  switch (mood) {
+    case "proud":
+      pool.push(`${subject}は${predicate}じゃない。えへん`);
+      break;
+    case "sleepy":
+      pool.push(`${subject}…${predicate}じゃない…`);
+      break;
+    case "confused":
+      pool.push(`${subject}は${predicate}じゃないかも`);
+      break;
+    case "genki":
+      pool.push(`${subject}は${predicate}じゃない！！`);
+      break;
+    default:
+      break;
+  }
+
+  return pool;
+}
+
+export function formatLearnedReply(
+  random: RandomSource,
+  subject: string,
+  predicate: string,
+  mood: Mood,
+  confidence: number
+): string {
+  const pool = random.chance(0.25)
+    ? buildEchoLearnedTemplates(subject, predicate, mood, confidence)
+    : buildShortLearnedTemplates(mood, confidence);
+  return random.pick(pool);
+}
+
+export function formatDeniedLearnReply(
+  random: RandomSource,
+  subject: string,
+  predicate: string,
+  mood: Mood
+): string {
+  const pool = random.chance(0.25)
+    ? buildEchoDeniedTemplates(subject, predicate, mood)
+    : buildShortDeniedTemplates(mood);
+  return random.pick(pool);
+}
 
 export function withMaybeOpener(random: RandomSource, body: string, rate = 0.35): string {
   if (!body.trim()) return body;

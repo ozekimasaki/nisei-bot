@@ -2,10 +2,16 @@ import { describe, expect, test } from "vitest";
 import { SeededRandomSource } from "../src/random.js";
 import {
   confusedAboutSubject,
+  formatDeniedLearnReply,
   formatFactAnswer,
+  formatLearnedReply,
   withMaybeOpener,
   withQuestionOpener
 } from "../src/utterance.js";
+
+function hasEcho(answer: string, subject: string, predicate: string): boolean {
+  return answer.includes(subject) && answer.includes(predicate);
+}
 
 describe("utterance helpers", () => {
   test("confusedAboutSubject never says it does not know", () => {
@@ -52,5 +58,71 @@ describe("utterance helpers", () => {
     expect(answer).toMatch(/^はい/u);
     expect(answer).toContain("りんごは赤い");
     expect(answer).not.toMatch(/^うん/u);
+  });
+
+  test("formatLearnedReply often returns short reactions without echoing words", () => {
+    let sawShort = false;
+    for (let seed = 0; seed < 80; seed += 1) {
+      const answer = formatLearnedReply(new SeededRandomSource(seed), "りんご", "赤い", "normal", 1);
+      if (!hasEcho(answer, "りんご", "赤い")) {
+        sawShort = true;
+        expect(answer.length).toBeLessThanOrEqual(16);
+      }
+    }
+    expect(sawShort).toBe(true);
+  });
+
+  test("formatLearnedReply sometimes echoes the learned words", () => {
+    let sawEcho = false;
+    for (let seed = 0; seed < 80; seed += 1) {
+      const answer = formatLearnedReply(new SeededRandomSource(seed), "りんご", "赤い", "normal", 1);
+      if (hasEcho(answer, "りんご", "赤い")) {
+        sawEcho = true;
+      }
+    }
+    expect(sawEcho).toBe(true);
+  });
+
+  test("formatLearnedReply can use re-learning phrasing", () => {
+    let sawRelearn = false;
+    for (let seed = 0; seed < 80; seed += 1) {
+      const answer = formatLearnedReply(new SeededRandomSource(seed), "りんご", "赤い", "normal", 2);
+      if (/もう知ってる|また教えてくれた/u.test(answer)) {
+        sawRelearn = true;
+      }
+    }
+    expect(sawRelearn).toBe(true);
+  });
+
+  test("formatLearnedReply reflects mood in short replies", () => {
+    const proud = formatLearnedReply(new SeededRandomSource(4), "りんご", "赤い", "proud", 1);
+    const sleepy = formatLearnedReply(new SeededRandomSource(5), "りんご", "赤い", "sleepy", 1);
+    expect(proud === "えへん！" || proud === "できた" || hasEcho(proud, "りんご", "赤い")).toBe(true);
+    expect(sleepy === "ねむいけどおぼえた" || sleepy === "zzz…わかった" || hasEcho(sleepy, "りんご", "赤い")).toBe(
+      true
+    );
+  });
+
+  test("formatDeniedLearnReply often returns short denials", () => {
+    let sawShort = false;
+    for (let seed = 0; seed < 80; seed += 1) {
+      const answer = formatDeniedLearnReply(new SeededRandomSource(seed), "りんご", "青い", "normal");
+      if (!hasEcho(answer, "りんご", "青い")) {
+        sawShort = true;
+      }
+    }
+    expect(sawShort).toBe(true);
+  });
+
+  test("formatDeniedLearnReply sometimes echoes the denied words", () => {
+    let sawEcho = false;
+    for (let seed = 0; seed < 80; seed += 1) {
+      const answer = formatDeniedLearnReply(new SeededRandomSource(seed), "りんご", "青い", "normal");
+      if (hasEcho(answer, "りんご", "青い")) {
+        sawEcho = true;
+        expect(answer).toMatch(/じゃない/u);
+      }
+    }
+    expect(sawEcho).toBe(true);
   });
 });

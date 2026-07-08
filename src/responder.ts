@@ -28,6 +28,8 @@ import {
   confusedAboutSubject,
   emptyTreasureReply,
   formatFactAnswer,
+  formatDeniedLearnReply,
+  formatLearnedReply,
   withMaybeOpener,
   withQuestionOpener
 } from "./utterance.js";
@@ -168,15 +170,12 @@ export class ResponsePlanner {
         const subject = normalizeMemoryWord(intent.subject, { ...memoryOptions, preferDictionary: true });
         const predicate = normalizeMemoryWord(intent.predicate, memoryOptions);
         if (!subject || !predicate) return { shouldReply: false };
-        await this.store.remember(input.guildId, subject, predicate);
+        const confidence = await this.store.remember(input.guildId, subject, predicate);
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate * 2);
         await this.store.saveTreasure(input.guildId, subject, input.userId, "おしえてもらった");
         await this.store.markSpoke(input.guildId, mood);
-        const learned =
-          mood === "proud"
-            ? `${subject}は${predicate}。えへん、おぼえた`
-            : `${subject}は${predicate}。おぼえた`;
-        return this.reply(input, await this.finishText(input.guildId, withMaybeOpener(this.random, learned), 0.1), mood, subject);
+        const learned = formatLearnedReply(this.random, subject, predicate, mood, confidence);
+        return this.reply(input, await this.finishText(input.guildId, learned, 0.15), mood, subject);
       }
       case "denyTeach": {
         const subject = normalizeMemoryWord(intent.subject, { ...memoryOptions, preferDictionary: true });
@@ -185,12 +184,8 @@ export class ResponsePlanner {
         await this.store.saveMisunderstanding(input.guildId, subject, predicate);
         await this.store.corruptMemory(input.guildId, subject, predicate);
         await this.store.markSpoke(input.guildId, mood);
-        return this.reply(
-          input,
-          await this.finishText(input.guildId, withMaybeOpener(this.random, `${subject}は${predicate}じゃない。おぼえた`), 0.1),
-          mood,
-          subject
-        );
+        const denied = formatDeniedLearnReply(this.random, subject, predicate, mood);
+        return this.reply(input, await this.finishText(input.guildId, denied, 0.15), mood, subject);
       }
       case "question": {
         const subject = normalizeMemoryWord(intent.subject, memoryOptions) ?? intent.subject.trim().slice(0, 12);
