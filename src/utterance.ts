@@ -29,7 +29,7 @@ const shortDeniedReplies = [
 ] as const;
 
 function buildShortLearnedTemplates(mood: Mood, confidence: number): string[] {
-  const pool = [...shortLearnedReplies];
+  const pool: string[] = [...shortLearnedReplies];
 
   if (confidence > 1) {
     pool.push("もう知ってる", "また教えてくれた");
@@ -92,7 +92,7 @@ function buildEchoLearnedTemplates(
 }
 
 function buildShortDeniedTemplates(mood: Mood): string[] {
-  const pool = [...shortDeniedReplies];
+  const pool: string[] = [...shortDeniedReplies];
 
   switch (mood) {
     case "proud":
