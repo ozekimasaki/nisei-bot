@@ -1,3 +1,6 @@
+import type { Mood } from "./mood.js";
+import { emojisForMood } from "./mood.js";
+
 export const defaultWords = [
   "ねむい",
   "えらい",
@@ -51,8 +54,45 @@ export const defaultEmoji = [
   "⭐",
   "🍵",
   "🌀",
-  "🙌"
+  "🙌",
+  "🍪",
+  "🍙",
+  "🍡",
+  "🧁",
+  "🍦",
+  "🍫",
+  "🌸",
+  "🍀",
+  "🌈",
+  "☁️",
+  "🌊",
+  "🍂",
+  "🐱",
+  "🐶",
+  "🐸",
+  "🐻",
+  "🐰",
+  "🦆",
+  "😴",
+  "😪",
+  "🤔",
+  "😮",
+  "😋",
+  "🥺",
+  "😤",
+  "🧸",
+  "🎈",
+  "🎀",
+  "🔮",
+  "💫",
+  "🎵",
+  "📎"
 ];
+
+export function buildEmojiPool(learned: readonly string[], mood?: Mood): string[] {
+  const moodPool = mood ? emojisForMood(mood) : [];
+  return [...new Set([...learned, ...moodPool, ...defaultEmoji])];
+}
 
 export const defaultOpeners = [
   "",

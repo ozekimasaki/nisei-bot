@@ -7,6 +7,18 @@ const SLEEP_KEYWORDS = /眠|ねむ|寝|おやすみ/u;
 const WAKE_KEYWORDS = /起き|おき|目覚|元気|おはよ/u;
 const SLEEPY_PERSIST_MULTIPLIER = 0.45;
 
+const MOOD_EMOJIS: Record<Mood, readonly string[]> = {
+  normal: [],
+  sleepy: ["😴", "😪", "💤", "🌙", "🛏️"],
+  genki: ["✨", "🎉", "🙌", "⭐", "🌈"],
+  confused: ["🤔", "❓", "🌀", "💭"],
+  proud: ["😤", "🌟", "👑", "💪"]
+};
+
+export function emojisForMood(mood: Mood): readonly string[] {
+  return MOOD_EMOJIS[mood];
+}
+
 export function parseMood(value: string | null | undefined): Mood | null {
   if (value === "normal" || value === "sleepy" || value === "genki" || value === "confused" || value === "proud") {
     return value;

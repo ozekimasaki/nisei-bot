@@ -11,7 +11,7 @@ import {
 import { ConfusionEngine } from "./confusion.js";
 import type { AppConfig } from "./config.js";
 import { type KnownUserSummary, type MemoryStore } from "./db.js";
-import { defaultEmoji, defaultReactions, defaultThoughts, defaultWords, maybeEmoji } from "./default-brain.js";
+import { buildEmojiPool, defaultReactions, defaultThoughts, defaultWords, maybeEmoji } from "./default-brain.js";
 import { FortuneGenerator } from "./fortune.js";
 import { HaikuGenerator } from "./haiku.js";
 import { JankenGame } from "./janken.js";
@@ -136,7 +136,7 @@ export class ResponsePlanner {
     const tsukkomi = this.tryTsukkomi(input, intent);
     if (tsukkomi) {
       await this.store.markSpoke(input.guildId, mood);
-      return this.reply(input, await this.finishText(input.guildId, tsukkomi), mood);
+      return this.reply(input, await this.finishText(input.guildId, tsukkomi, undefined, mood), mood);
     }
     if (intent.type === "correction" || intent.type === "doubt" || intent.type === "lieCall") {
       return { shouldReply: false };
@@ -152,7 +152,7 @@ export class ResponsePlanner {
         if (idle) {
           this.channelActivity.markChattered(input.channelId);
           await this.store.markSpoke(input.guildId, mood);
-          return this.reply(input, await this.finishText(input.guildId, idle), mood);
+          return this.reply(input, await this.finishText(input.guildId, idle, undefined, mood), mood);
         }
       }
       const shouldTalk = await this.shouldRandomlyTalk(
@@ -175,7 +175,7 @@ export class ResponsePlanner {
         await this.store.saveTreasure(input.guildId, subject, input.userId, "おしえてもらった");
         await this.store.markSpoke(input.guildId, mood);
         const learned = formatLearnedReply(this.random, subject, predicate, mood, confidence);
-        return this.reply(input, await this.finishText(input.guildId, learned, 0.15), mood, subject);
+        return this.reply(input, await this.finishText(input.guildId, learned, 0.15, mood), mood, subject);
       }
       case "denyTeach": {
         const subject = normalizeMemoryWord(intent.subject, { ...memoryOptions, preferDictionary: true });
@@ -185,7 +185,7 @@ export class ResponsePlanner {
         await this.store.corruptMemory(input.guildId, subject, predicate);
         await this.store.markSpoke(input.guildId, mood);
         const denied = formatDeniedLearnReply(this.random, subject, predicate, mood);
-        return this.reply(input, await this.finishText(input.guildId, denied, 0.15), mood, subject);
+        return this.reply(input, await this.finishText(input.guildId, denied, 0.15, mood), mood, subject);
       }
       case "question": {
         const subject = normalizeMemoryWord(intent.subject, memoryOptions) ?? intent.subject.trim().slice(0, 12);
@@ -202,13 +202,13 @@ export class ResponsePlanner {
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate);
         await this.store.markSpoke(input.guildId, mood);
         const greeting = this.confusion.maybeWrongGreeting(intent.kind, this.mood.greetingWrongBoost(mood));
-        return this.reply(input, await this.finishText(input.guildId, greeting), mood);
+        return this.reply(input, await this.finishText(input.guildId, greeting, undefined, mood), mood);
       }
       case "poke": {
         const pokeCount = await this.store.poke(input.guildId, input.userId);
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate);
         await this.store.markSpoke(input.guildId, mood);
-        return this.reply(input, await this.finishText(input.guildId, this.pokeReply(pokeCount), 0.22), mood);
+        return this.reply(input, await this.finishText(input.guildId, this.pokeReply(pokeCount), 0.22, mood), mood);
       }
       case "treasure": {
         await this.store.markSpoke(input.guildId, mood);
@@ -230,13 +230,13 @@ export class ResponsePlanner {
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate);
         await this.store.startJanken(input.guildId, input.channelId, input.userId);
         await this.store.markSpoke(input.guildId, mood);
-        return this.reply(input, await this.finishText(input.guildId, this.janken.start(), 0.12), mood);
+        return this.reply(input, await this.finishText(input.guildId, this.janken.start(), 0.12, mood), mood);
       }
       case "jankenRematch": {
         const hasSession = await this.store.hasJankenSession(input.guildId, input.channelId, input.userId);
         if (!hasSession) return { shouldReply: false };
         await this.store.markSpoke(input.guildId, mood);
-        return this.reply(input, await this.finishText(input.guildId, this.janken.rematch(), 0.12), mood);
+        return this.reply(input, await this.finishText(input.guildId, this.janken.rematch(), 0.12, mood), mood);
       }
       case "jankenHand": {
         const hasSession = await this.store.hasJankenSession(input.guildId, input.channelId, input.userId);
@@ -250,7 +250,7 @@ export class ResponsePlanner {
         const result = this.janken.play(intent.hand, currentStreak);
         await this.store.updateJankenStreak(input.guildId, input.channelId, input.userId, result.botWon);
         await this.store.markSpoke(input.guildId, mood);
-        return this.reply(input, await this.finishText(input.guildId, result.text, 0.12), mood);
+        return this.reply(input, await this.finishText(input.guildId, result.text, 0.12, mood), mood);
       }
       case "fortune": {
         const [facts, snippets, treasures, emojis] = await Promise.all([
@@ -263,7 +263,7 @@ export class ResponsePlanner {
         if (this.random.chance(0.18)) {
           return this.reply(
             input,
-            await this.finishText(input.guildId, await this.wrongFortune(input.guildId, input.userId, input.content, mood), 0.25),
+            await this.finishText(input.guildId, await this.wrongFortune(input.guildId, input.userId, input.content, mood), 0.25, mood),
             mood
           );
         }
@@ -293,11 +293,11 @@ export class ResponsePlanner {
         const text = await this.generateChatter(input.guildId, input.userId, input.content, mood);
         await this.store.addAffection(input.guildId, input.userId, this.config.affectionGainRate);
         await this.store.markSpoke(input.guildId, mood);
-        return this.reply(input, await this.finishText(input.guildId, `${text}${this.mood.suffix(mood)}`, 0.08), mood);
+        return this.reply(input, await this.finishText(input.guildId, `${text}${this.mood.suffix(mood)}`, 0.08, mood), mood);
       }
       case "attachment": {
         await this.store.markSpoke(input.guildId, mood);
-        return this.reply(input, await this.finishText(input.guildId, this.attachmentReply(input.attachments), 0.15), mood);
+        return this.reply(input, await this.finishText(input.guildId, this.attachmentReply(input.attachments), 0.15, mood), mood);
       }
       case "chatter": {
         const text = await this.maybeAddWrongUser(
@@ -307,7 +307,7 @@ export class ResponsePlanner {
         );
         this.channelActivity.markChattered(input.channelId);
         await this.store.markSpoke(input.guildId, mood);
-        return this.reply(input, await this.finishText(input.guildId, this.confusion.mutate(text)), mood);
+        return this.reply(input, await this.finishText(input.guildId, this.confusion.mutate(text), undefined, mood), mood);
       }
       default: {
         const never: never = intent;
@@ -487,7 +487,9 @@ export class ResponsePlanner {
       if (!wikiText.includes("しらべられない")) {
         return await this.finishText(
           input.guildId,
-          withQuestionOpener(this.random, `${wikiText}${this.mood.questionSuffix(mood)}`)
+          withQuestionOpener(this.random, `${wikiText}${this.mood.questionSuffix(mood)}`),
+          undefined,
+          mood
         );
       }
     }
@@ -524,7 +526,7 @@ export class ResponsePlanner {
     }
 
     text = await this.maybeAddWrongUser(input.guildId, input.userId, text, user);
-    return await this.finishText(input.guildId, withQuestionOpener(this.random, text));
+    return await this.finishText(input.guildId, withQuestionOpener(this.random, text), undefined, mood);
   }
 
   private async lookupWiki(guildId: string, query: string, force: boolean): Promise<string> {
@@ -741,7 +743,8 @@ export class ResponsePlanner {
     return this.personality.withEmoji(
       this.personality.prefixMaybe(this.random.pick(choices), personalityContext),
       this.config.emojiUseRate,
-      emojis
+      emojis,
+      mood
     );
   }
 
@@ -817,9 +820,14 @@ export class ResponsePlanner {
     return multiplier > 0 && this.random.chance(this.config.silenceRate * multiplier);
   }
 
-  private async finishText(guildId: string, text: string, probability = this.config.emojiUseRate): Promise<string> {
+  private async finishText(
+    guildId: string,
+    text: string,
+    probability = this.config.emojiUseRate,
+    mood?: Mood
+  ): Promise<string> {
     const emojis = await this.store.learnedEmojis(guildId, 12);
-    const finished = this.personality.withEmoji(text, probability, emojis);
+    const finished = this.personality.withEmoji(text, probability, emojis, mood);
     const used = extractEmojis(finished).find((emoji) => emojis.includes(emoji));
     if (used) await this.store.markEmojiUsed(guildId, used);
     return finished;
@@ -841,7 +849,7 @@ export class ResponsePlanner {
     const word = this.random.pick(defaultWords);
     const other = this.random.pick(defaultWords);
     const thought = this.random.pick(defaultThoughts);
-    const emoji = this.random.chance(0.25) ? this.random.pick(defaultEmoji) : null;
+    const emoji = this.random.chance(0.25) ? this.random.pick(buildEmojiPool([])) : null;
 
     return [
       maybeEmoji(`${word}は${other}`, emoji),

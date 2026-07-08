@@ -1,5 +1,5 @@
 import type { MemoryFact } from "./db.js";
-import { defaultEmoji, defaultWords, maybeEmoji } from "./default-brain.js";
+import { buildEmojiPool, defaultWords, maybeEmoji } from "./default-brain.js";
 import type { RandomSource } from "./random.js";
 import { withMaybeOpener } from "./utterance.js";
 
@@ -31,7 +31,7 @@ export class FortuneGenerator {
       `うんせい: ${this.random.pick(fortunes)}`,
       `らっきーからー: ${this.random.pick(colors)}`,
       `らっきーあいてむ: ${luckyItem}`,
-      maybeEmoji(comment, this.random.chance(0.35) ? this.random.pick([...emojis, ...defaultEmoji]) : null)
+      maybeEmoji(comment, this.random.chance(0.35) ? this.random.pick(buildEmojiPool(emojis)) : null)
     ].join("\n");
   }
 }

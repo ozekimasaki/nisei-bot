@@ -1,6 +1,6 @@
 import type { KnownUserSummary, MemoryFact, TreasureSummary } from "./db.js";
 import { affectionTier, displayNameForUser } from "./affection.js";
-import { defaultEmoji, defaultReactions, defaultThoughts, defaultWords, maybeEmoji } from "./default-brain.js";
+import { buildEmojiPool, defaultReactions, defaultThoughts, defaultWords, maybeEmoji } from "./default-brain.js";
 import type { Mood } from "./mood.js";
 import type { RandomSource } from "./random.js";
 
@@ -71,7 +71,7 @@ export class PersonalityEngine {
         thoughts.push("へへ");
     }
 
-    return this.withEmoji(this.random.pick(thoughts), 0.18, context.emojis);
+    return this.withEmoji(this.random.pick(thoughts), 0.18, context.emojis, context.mood);
   }
 
   prefixMaybe(text: string, context: PersonalityContext): string {
@@ -81,9 +81,9 @@ export class PersonalityEngine {
     return `${thought}。${text}`;
   }
 
-  withEmoji(text: string, probability = 0.12, learnedEmojis: string[] = []): string {
+  withEmoji(text: string, probability = 0.12, learnedEmojis: string[] = [], mood?: Mood): string {
     if (!this.random.chance(probability)) return text;
-    const emojiPool = [...learnedEmojis, ...defaultEmoji];
+    const emojiPool = buildEmojiPool(learnedEmojis, mood);
     return maybeEmoji(text, this.random.pick(emojiPool));
   }
 
