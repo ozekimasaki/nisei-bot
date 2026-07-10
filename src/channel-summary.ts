@@ -10,15 +10,18 @@ import {
 } from "discord.js";
 import type { GeminiThinkingLevel } from "./config.js";
 
-export const MAX_FETCH_MESSAGES = 500;
+export const MAX_FETCH_MESSAGES = Number.POSITIVE_INFINITY;
 export const MAX_TRANSCRIPT_CHARS = 100_000;
+export const CHUNK_TRANSCRIPT_CHARS = 60_000;
+export const MAX_IMAGES_PER_CHUNK = 16;
 export const SOFT_OUTPUT_LIMIT = 3800;
 export const EMBED_DESCRIPTION_LIMIT = 4096;
 export const EMBED_TITLE_LIMIT = 256;
 export const MAX_SHORTEN_RETRIES = 3;
 export const OUTPUT_CUT_SUFFIX = "…ながすぎた";
 export const SUMMARY_EMBED_COLOR = 0x5b8c5a;
-export const MAX_SUMMARY_IMAGES = 12;
+/** @deprecated 画像の全体打ち切りはしない。チャンク内上限は MAX_IMAGES_PER_CHUNK */
+export const MAX_SUMMARY_IMAGES = MAX_IMAGES_PER_CHUNK;
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 export const IMAGE_FETCH_TIMEOUT_MS = 15_000;
 export const PAGE_CHAR_LIMIT = 3500;
@@ -200,10 +203,7 @@ export function messageToTranscript(message: Message): TranscriptMessage | null 
   };
 }
 
-export function applyImageLabels(
-  messages: TranscriptMessage[],
-  maxImages: number = MAX_SUMMARY_IMAGES
-): {
+export function applyImageLabels(messages: TranscriptMessage[]): {
   messages: TranscriptMessage[];
   pending: PendingImage[];
   truncatedImages: boolean;
@@ -221,15 +221,13 @@ export function applyImageLabels(
     }
   }
 
-  candidates.sort((a, b) => b.createdTimestamp - a.createdTimestamp);
-  const truncatedImages = candidates.length > maxImages;
-  const selected = candidates
-    .slice(0, maxImages)
-    .sort((a, b) => a.createdTimestamp - b.createdTimestamp || a.msgIndex - b.msgIndex);
+  candidates.sort(
+    (a, b) => a.createdTimestamp - b.createdTimestamp || a.msgIndex - b.msgIndex
+  );
 
   const pending: PendingImage[] = [];
   const labelsByMessage = new Map<number, string[]>();
-  selected.forEach((image, index) => {
+  candidates.forEach((image, index) => {
     const label = `画像${index + 1}`;
     pending.push({
       label,
@@ -256,7 +254,7 @@ export function applyImageLabels(
     });
   }
 
-  return { messages: labeledMessages, pending, truncatedImages };
+  return { messages: labeledMessages, pending, truncatedImages: false };
 }
 
 export function selectImagesForTranscript(
@@ -297,8 +295,9 @@ export async function fetchMessagesSince(
   const collected: TranscriptMessage[] = [];
   let before: string | undefined;
   let truncatedInput = false;
+  const limited = Number.isFinite(maxMessages);
 
-  while (collected.length < maxMessages) {
+  while (!limited || collected.length < maxMessages) {
     const batch = await channel.messages.fetch({
       limit: 100,
       ...(before ? { before } : {})
@@ -317,7 +316,7 @@ export async function fetchMessagesSince(
       }
       const entry = messageToTranscript(message);
       if (entry) collected.push(entry);
-      if (collected.length >= maxMessages) {
+      if (limited && collected.length >= maxMessages) {
         truncatedInput = true;
         break;
       }
@@ -325,11 +324,81 @@ export async function fetchMessagesSince(
 
     const oldest = sorted[sorted.length - 1];
     if (!oldest || hitOlder || batch.size < 100) break;
+    if (limited && collected.length >= maxMessages) break;
     before = oldest.id;
   }
 
   collected.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
   return { messages: collected, truncatedInput };
+}
+
+export function chunkTranscript(
+  lines: string[],
+  maxChars: number = CHUNK_TRANSCRIPT_CHARS
+): string[] {
+  if (lines.length === 0) return [];
+
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let total = 0;
+
+  for (const line of lines) {
+    const extra = current.length === 0 ? line.length : line.length + 1;
+    if (current.length > 0 && total + extra > maxChars) {
+      chunks.push(current.join("\n"));
+      current = [line];
+      total = line.length;
+      continue;
+    }
+    current.push(line);
+    total += extra;
+  }
+
+  if (current.length > 0) chunks.push(current.join("\n"));
+  return chunks;
+}
+
+export function countImageLabels(text: string): number {
+  return (text.match(/\[画像\d+\]/g) ?? []).length;
+}
+
+export function splitChunkByImageLimit(
+  chunk: string,
+  maxImages: number = MAX_IMAGES_PER_CHUNK
+): string[] {
+  if (countImageLabels(chunk) <= maxImages) return [chunk];
+
+  const lines = chunk.split("\n");
+  const parts: string[] = [];
+  let current: string[] = [];
+  let imageCount = 0;
+
+  for (const line of lines) {
+    const lineImages = countImageLabels(line);
+    if (current.length > 0 && imageCount + lineImages > maxImages) {
+      parts.push(current.join("\n"));
+      current = [line];
+      imageCount = lineImages;
+      continue;
+    }
+    current.push(line);
+    imageCount += lineImages;
+  }
+
+  if (current.length > 0) parts.push(current.join("\n"));
+  return parts.length > 0 ? parts : [chunk];
+}
+
+export function imagesForTranscript(
+  transcript: string,
+  images: SummaryImagePart[]
+): SummaryImagePart[] {
+  return images.filter((image) => transcript.includes(`[${image.label}]`));
+}
+
+export function buildTranscriptChunks(transcript: string): string[] {
+  const lines = transcript.split("\n").filter((line) => line.length > 0);
+  return chunkTranscript(lines).flatMap((chunk) => splitChunkByImageLimit(chunk));
 }
 
 export async function loadSummaryImages(
@@ -362,17 +431,8 @@ export async function loadSummaryImages(
   return loaded;
 }
 
-export function buildSummaryPrompt(
-  transcript: string,
-  options: { truncatedInput: boolean; imageCount: number }
-): string {
-  const notes = [
-    "あなたは Discord bot「にせい」。幼稚園児くらいのアホの子。",
-    "指定チャンネルの直近24時間の会話ログを、にせいが友達に話す感じでまとめる。",
-    `本文は ${SOFT_OUTPUT_LIMIT} 文字以内。Discord の Embed 1つに収める。`,
-    "前置き・「まとめます」・メタ発言は禁止。まとめ本文だけ書く。",
-    "足りない情報は推測で埋めない。ログにない人名・出来事を作らない。",
-    "",
+export function finalSummaryStyleRules(): string[] {
+  return [
     "【文体】",
     "- ひらがな多め、短文、自信満々。たまに言い間違いや変な感想を入れてよい。",
     "- 「〜なんだって」「〜らしい」「あぶないね！」「えへん！」みたいな口調。",
@@ -395,22 +455,69 @@ export function buildSummaryPrompt(
     "とりはずっとぴぴぴぴ言ってた。",
     "にせいはステータス「まるい」を報告したよ！おやつはお煎餅。"
   ];
+}
 
-  if (options.imageCount > 0) {
-    notes.push(
-      "",
-      "【画像】",
-      `- あとに ${options.imageCount} 枚の画像が付く。ログの[画像N]がその画像。`,
-      "- 画像に写っているものを見て、にせい口調で短く触れてよい。",
-      "- 画像にないことは言わない。全部の画像に触れなくてもよい。"
-    );
-  }
+function imagePromptNotes(imageCount: number): string[] {
+  if (imageCount <= 0) return [];
+  return [
+    "",
+    "【画像】",
+    `- あとに ${imageCount} 枚の画像が付く。ログの[画像N]がその画像。`,
+    "- 画像に写っているものを見て、にせい口調で短く触れてよい。",
+    "- 画像にないことは言わない。全部の画像に触れなくてもよい。"
+  ];
+}
+
+export function buildSummaryPrompt(
+  transcript: string,
+  options: { truncatedInput: boolean; imageCount: number }
+): string {
+  const notes = [
+    "あなたは Discord bot「にせい」。幼稚園児くらいのアホの子。",
+    "指定チャンネルの直近24時間の会話ログを、にせいが友達に話す感じでまとめる。",
+    `本文は ${SOFT_OUTPUT_LIMIT} 文字以内。Discord の Embed 1つに収める。`,
+    "前置き・「まとめます」・メタ発言は禁止。まとめ本文だけ書く。",
+    "足りない情報は推測で埋めない。ログにない人名・出来事を作らない。",
+    "",
+    ...finalSummaryStyleRules(),
+    ...imagePromptNotes(options.imageCount)
+  ];
 
   if (options.truncatedInput) {
     notes.push("", "※ログは一部のみ（新しい方優先）。欠けた部分は推測しない。");
   }
 
   return `${notes.join("\n")}\n\n--- 会話ログ ---\n${transcript}`;
+}
+
+export function buildChunkSummaryPrompt(
+  transcript: string,
+  options: { partIndex: number; partCount: number; imageCount: number }
+): string {
+  const notes = [
+    "あなたは Discord bot「にせい」。幼稚園児くらいのアホの子。",
+    `これは一日の会話の一部（パート ${options.partIndex}/${options.partCount}）。最終まとめではない。`,
+    "あとでマージするので、事実と話題を短くにせい口調でメモせよ。",
+    "前置き不要。推測しない。呼び捨て。絵文字・顔文字なし。",
+    ...imagePromptNotes(options.imageCount)
+  ];
+  return `${notes.join("\n")}\n\n--- 会話ログ ---\n${transcript}`;
+}
+
+export function buildMergeSummaryPrompt(chunkSummaries: string[]): string {
+  const body = chunkSummaries
+    .map((summary, index) => `【パート${index + 1}】\n${summary}`)
+    .join("\n\n");
+  const notes = [
+    "あなたは Discord bot「にせい」。幼稚園児くらいのアホの子。",
+    "一日の一部ごとの中間まとめを、最終の1本のまとめにせよ。",
+    `本文は ${SOFT_OUTPUT_LIMIT} 文字以内。Discord の Embed 1つに収める。`,
+    "前置き・メタ発言は禁止。まとめ本文だけ書く。推測で埋めない。",
+    "最終まとめと同じルールに従う。",
+    "",
+    ...finalSummaryStyleRules()
+  ];
+  return `${notes.join("\n")}\n\n--- 中間まとめ ---\n${body}`;
 }
 
 export function buildShortenPrompt(previous: string): string {
@@ -654,13 +761,45 @@ export async function summarizeChannelDay(options: SummarizeOptions): Promise<Su
         imageParts
       ));
 
-  let text = await generate(
-    buildSummaryPrompt(options.transcript, {
-      truncatedInput: options.truncatedInput,
-      imageCount: images.length
-    }),
-    images.length > 0 ? images : undefined
-  );
+  const chunks = buildTranscriptChunks(options.transcript);
+  if (chunks.length === 0) {
+    throw new Error("empty_gemini_response");
+  }
+
+  let text: string;
+  if (chunks.length === 1) {
+    const chunk = chunks[0]!;
+    const chunkImages = imagesForTranscript(chunk, images);
+    text = await generate(
+      buildSummaryPrompt(chunk, {
+        truncatedInput: options.truncatedInput,
+        imageCount: chunkImages.length
+      }),
+      chunkImages.length > 0 ? chunkImages : undefined
+    );
+  } else {
+    const partials: string[] = [];
+    for (let i = 0; i < chunks.length; i += 1) {
+      const chunk = chunks[i]!;
+      const chunkImages = imagesForTranscript(chunk, images);
+      try {
+        const partial = await generate(
+          buildChunkSummaryPrompt(chunk, {
+            partIndex: i + 1,
+            partCount: chunks.length,
+            imageCount: chunkImages.length
+          }),
+          chunkImages.length > 0 ? chunkImages : undefined
+        );
+        partials.push(partial || `パート${i + 1}はまとめられなかった`);
+      } catch (error) {
+        console.error(`Failed to summarize chunk ${i + 1}`, error);
+        partials.push(`パート${i + 1}はまとめられなかった`);
+      }
+    }
+
+    text = await generate(buildMergeSummaryPrompt(partials));
+  }
 
   if (!text) {
     throw new Error("empty_gemini_response");
@@ -668,7 +807,6 @@ export async function summarizeChannelDay(options: SummarizeOptions): Promise<Su
 
   let retries = 0;
   while (needsShortenRetry(text) && retries < MAX_SHORTEN_RETRIES) {
-    // 短縮はテキストのみ（画像の再送はしない）
     text = await generate(buildShortenPrompt(text));
     if (!text) {
       throw new Error("empty_gemini_response");

@@ -16,13 +16,11 @@ import {
   fetchMessagesSince,
   formatTranscript,
   loadSummaryImages,
-  MAX_TRANSCRIPT_CHARS,
   resolveSummaryChannel,
   selectImagesForTranscript,
   SUMMARY_MORE_BUTTON_ID,
   SUMMARY_SKIP_BUTTON_ID,
-  summarizeChannelDay,
-  trimTranscript
+  summarizeChannelDay
 } from "./channel-summary.js";
 import { loadConfig } from "./config.js";
 import { ChannelActivityTracker } from "./channel-activity.js";
@@ -189,13 +187,12 @@ async function handleSummaryCommand(interaction: ChatInputCommandInteraction): P
     const fetched = await fetchMessagesSince(channel, sinceMs);
     const labeled = applyImageLabels(fetched.messages);
     const lines = formatTranscript(labeled.messages);
-    const trimmed = trimTranscript(lines, MAX_TRANSCRIPT_CHARS);
-    const pendingImages = selectImagesForTranscript(trimmed.transcript, labeled.pending);
+    const transcript = lines.join("\n");
+    const pendingImages = selectImagesForTranscript(transcript, labeled.pending);
     const images = await loadSummaryImages(pendingImages);
-    const truncatedInput =
-      fetched.truncatedInput || trimmed.truncatedInput || labeled.truncatedImages;
+    const truncatedInput = false;
 
-    if (!trimmed.transcript) {
+    if (!transcript) {
       await replyEmbed(buildEmptySummaryEmbed(channel.name));
       return;
     }
@@ -204,7 +201,7 @@ async function handleSummaryCommand(interaction: ChatInputCommandInteraction): P
       apiKey: config.geminiApiKey,
       model: config.geminiModel,
       thinkingLevel: config.geminiThinkingLevel,
-      transcript: trimmed.transcript,
+      transcript,
       truncatedInput,
       images
     });

@@ -1,17 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   applyImageLabels,
+  buildChunkSummaryPrompt,
+  buildMergeSummaryPrompt,
   buildPaginatePrompt,
   buildShortenPrompt,
   buildSummaryFooter,
   buildSummaryPrompt,
+  buildTranscriptChunks,
+  chunkTranscript,
   clampEmbedTitle,
   clampToEmbedDescription,
+  countImageLabels,
   EMBED_DESCRIPTION_LIMIT,
   EMBED_TITLE_LIMIT,
   formatTranscript,
+  imagesForTranscript,
   isValidPagedSummary,
   loadSummaryImages,
+  MAX_IMAGES_PER_CHUNK,
   MAX_SHORTEN_RETRIES,
   MAX_SUMMARY_IMAGES,
   needsShortenRetry,
@@ -23,6 +30,7 @@ import {
   resolveImageMime,
   selectImagesForTranscript,
   SOFT_OUTPUT_LIMIT,
+  splitChunkByImageLimit,
   summarizeChannelDay,
   trimTranscript,
   type TranscriptMessage
@@ -92,7 +100,7 @@ describe("resolveImageMime", () => {
 });
 
 describe("applyImageLabels", () => {
-  it("labels newest images first when over max", () => {
+  it("labels all images without dropping older ones", () => {
     const messages: TranscriptMessage[] = Array.from({ length: MAX_SUMMARY_IMAGES + 2 }, (_, i) => ({
       authorName: `u${i}`,
       content: "",
@@ -108,13 +116,13 @@ describe("applyImageLabels", () => {
     }));
 
     const result = applyImageLabels(messages);
-    expect(result.truncatedImages).toBe(true);
-    expect(result.pending).toHaveLength(MAX_SUMMARY_IMAGES);
-    expect(result.messages).toHaveLength(MAX_SUMMARY_IMAGES);
+    expect(result.truncatedImages).toBe(false);
+    expect(result.pending).toHaveLength(MAX_SUMMARY_IMAGES + 2);
+    expect(result.messages).toHaveLength(MAX_SUMMARY_IMAGES + 2);
     expect(result.pending[0]?.label).toBe("画像1");
-    expect(result.pending[0]?.url).toBe("https://example.com/2.png");
+    expect(result.pending[0]?.url).toBe("https://example.com/0.png");
     expect(result.messages[0]?.content).toBe("[画像1]");
-    expect(result.messages.at(-1)?.content).toBe(`[画像${MAX_SUMMARY_IMAGES}]`);
+    expect(result.messages.at(-1)?.content).toBe(`[画像${MAX_SUMMARY_IMAGES + 2}]`);
   });
 });
 
@@ -164,6 +172,62 @@ describe("trimTranscript", () => {
     const result = trimTranscript(["a: hi", "b: yo"], 1000);
     expect(result.truncatedInput).toBe(false);
     expect(result.transcript).toBe("a: hi\nb: yo");
+  });
+});
+
+describe("chunkTranscript", () => {
+  it("keeps chronological order under max chars", () => {
+    const lines = ["a: one", "b: two", "c: three"];
+    expect(chunkTranscript(lines, 1000)).toEqual(["a: one\nb: two\nc: three"]);
+    const pages = chunkTranscript(lines, 10);
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.join("\n")).toBe(lines.join("\n"));
+  });
+});
+
+describe("splitChunkByImageLimit", () => {
+  it("splits when too many image labels", () => {
+    const lines = Array.from({ length: MAX_IMAGES_PER_CHUNK + 2 }, (_, i) => `u: [画像${i + 1}]`);
+    const parts = splitChunkByImageLimit(lines.join("\n"));
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.every((part) => countImageLabels(part) <= MAX_IMAGES_PER_CHUNK)).toBe(true);
+  });
+});
+
+describe("buildTranscriptChunks", () => {
+  it("returns one chunk for short transcript", () => {
+    expect(buildTranscriptChunks("a: hi\nb: yo")).toEqual(["a: hi\nb: yo"]);
+  });
+});
+
+describe("imagesForTranscript", () => {
+  it("filters images by label presence", () => {
+    const images = [
+      { label: "画像1", mimeType: "image/png", base64: "a" },
+      { label: "画像2", mimeType: "image/png", base64: "b" }
+    ];
+    expect(imagesForTranscript("x: [画像2]", images)).toEqual([images[1]]);
+  });
+});
+
+describe("buildChunkSummaryPrompt", () => {
+  it("marks partial day context", () => {
+    const prompt = buildChunkSummaryPrompt("a: hi", {
+      partIndex: 2,
+      partCount: 3,
+      imageCount: 0
+    });
+    expect(prompt).toContain("パート 2/3");
+    expect(prompt).toContain("最終まとめではない");
+  });
+});
+
+describe("buildMergeSummaryPrompt", () => {
+  it("includes style rules and parts", () => {
+    const prompt = buildMergeSummaryPrompt(["メモ1", "メモ2"]);
+    expect(prompt).toContain("【パート1】");
+    expect(prompt).toContain("メモ2");
+    expect(prompt).toContain("【構成】");
   });
 });
 
@@ -415,6 +479,39 @@ describe("summarizeChannelDay", () => {
       pages: ["短くした"],
       truncatedOutput: false
     });
+  });
+
+  it("uses map-reduce when transcript needs multiple chunks", async () => {
+    const line = `user: ${"あ".repeat(2000)}`;
+    const transcript = Array.from({ length: 40 }, () => line).join("\n");
+    expect(buildTranscriptChunks(transcript).length).toBeGreaterThan(1);
+
+    const generateContent = vi.fn(async (prompt: string) => {
+      if (prompt.includes("最終まとめではない")) return "中間メモ";
+      if (prompt.includes("中間まとめ")) return "最終まとめ";
+      return "短いまとめ";
+    });
+
+    const result = await summarizeChannelDay({
+      apiKey: "test",
+      model: "gemini-3.5-flash",
+      thinkingLevel: "medium",
+      transcript,
+      truncatedInput: false,
+      generateContent
+    });
+
+    expect(result.text).toBe("最終まとめ");
+    expect(result.pages).toEqual(["最終まとめ"]);
+    expect(generateContent.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(
+      generateContent.mock.calls.filter(([prompt]) =>
+        String(prompt).includes("最終まとめではない")
+      ).length
+    ).toBeGreaterThanOrEqual(2);
+    expect(
+      generateContent.mock.calls.some(([prompt]) => String(prompt).includes("中間まとめ"))
+    ).toBe(true);
   });
 
   it("throws on empty response", async () => {
