@@ -21,6 +21,13 @@ export const SUMMARY_EMBED_COLOR = 0x5b8c5a;
 export const MAX_SUMMARY_IMAGES = 12;
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 export const IMAGE_FETCH_TIMEOUT_MS = 15_000;
+export const PAGE_CHAR_LIMIT = 3500;
+export const MAX_SUMMARY_PAGES = 5;
+export const PAGE_MARKER = "<<<PAGE>>>";
+export const SUMMARY_CONTINUE_PROMPT = "つづきみる？";
+export const SUMMARY_MORE_BUTTON_ID = "nisei_sum:more";
+export const SUMMARY_SKIP_BUTTON_ID = "nisei_sum:skip";
+export const SUMMARY_PAGE_TTL_MS = 30 * 60 * 1000;
 
 const SUPPORTED_IMAGE_MIME = new Set([
   "image/jpeg",
@@ -58,7 +65,9 @@ export type SummaryImagePart = {
 
 export type TruncationFlags = {
   truncatedInput: boolean;
-  truncatedOutput: boolean;
+  truncatedOutput?: boolean;
+  pageIndex?: number;
+  pageCount?: number;
 };
 
 export type ClampResult = {
@@ -88,6 +97,7 @@ export type SummarizeOptions = {
 
 export type SummarizeResult = {
   text: string;
+  pages: string[];
   truncatedOutput: boolean;
 };
 
@@ -416,6 +426,94 @@ export function buildShortenPrompt(previous: string): string {
   ].join("\n");
 }
 
+export function buildPaginatePrompt(fullText: string): string {
+  return [
+    "次のまとめが長すぎる。内容は変えず、にせい口調のまま話題の区切りで分割せよ。",
+    `各パートは ${PAGE_CHAR_LIMIT} 文字以内。最大 ${MAX_SUMMARY_PAGES} パート。`,
+    `パートのあいだは単独行の ${PAGE_MARKER} だけを置く。`,
+    "前置き・説明・番号付けは禁止。分割後の本文だけを出力する。",
+    "",
+    "--- まとめ ---",
+    fullText
+  ].join("\n");
+}
+
+export function parsePagedSummary(text: string): string[] {
+  return text
+    .split(PAGE_MARKER)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+export function isValidPagedSummary(pages: string[]): boolean {
+  if (pages.length < 2 || pages.length > MAX_SUMMARY_PAGES) return false;
+  return pages.every(
+    (page) => page.length > 0 && page.length <= PAGE_CHAR_LIMIT && page.length <= EMBED_DESCRIPTION_LIMIT
+  );
+}
+
+export function paginateSummaryFallback(
+  text: string,
+  maxChars: number = PAGE_CHAR_LIMIT
+): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [""];
+  if (trimmed.length <= maxChars) return [trimmed];
+
+  const blocks = trimmed.split(/\n\n+/);
+  const pages: string[] = [];
+  let current = "";
+
+  const pushCurrent = () => {
+    if (current) pages.push(current);
+    current = "";
+  };
+
+  const appendChunk = (chunk: string) => {
+    if (!chunk) return;
+    if (chunk.length <= maxChars) {
+      const next = current ? `${current}\n\n${chunk}` : chunk;
+      if (next.length <= maxChars) {
+        current = next;
+        return;
+      }
+      pushCurrent();
+      current = chunk;
+      return;
+    }
+
+    pushCurrent();
+    for (let i = 0; i < chunk.length; i += maxChars) {
+      pages.push(chunk.slice(i, i + maxChars));
+    }
+  };
+
+  for (const block of blocks) {
+    appendChunk(block.trim());
+  }
+  pushCurrent();
+  return pages.length > 0 ? pages.slice(0, MAX_SUMMARY_PAGES) : [trimmed.slice(0, maxChars)];
+}
+
+export async function resolveSummaryPages(
+  text: string,
+  generate: GenerateContentFn
+): Promise<string[]> {
+  if (!needsShortenRetry(text) && text.length <= EMBED_DESCRIPTION_LIMIT) {
+    return [text];
+  }
+
+  try {
+    const paged = await generate(buildPaginatePrompt(text));
+    const parsed = parsePagedSummary(paged);
+    if (isValidPagedSummary(parsed)) return parsed;
+  } catch (error) {
+    console.error("Failed to paginate summary with Gemini", error);
+  }
+
+  return paginateSummaryFallback(text);
+}
+
 export function needsShortenRetry(text: string): boolean {
   return text.length > SOFT_OUTPUT_LIMIT;
 }
@@ -435,7 +533,15 @@ export function clampToEmbedDescription(text: string): ClampResult {
 export function buildSummaryFooter(flags: TruncationFlags): string {
   const parts = ["直近24時間"];
   if (flags.truncatedInput) parts.push("一部のみ");
-  if (flags.truncatedOutput) parts.push("要約カット");
+  if (
+    flags.pageCount !== undefined &&
+    flags.pageCount > 1 &&
+    flags.pageIndex !== undefined
+  ) {
+    parts.push(`${flags.pageIndex + 1}/${flags.pageCount}`);
+  } else if (flags.truncatedOutput) {
+    parts.push("要約カット");
+  }
   return parts.join("・");
 }
 
@@ -448,16 +554,20 @@ export function buildSummaryEmbed(options: {
   channelName: string;
   body: string;
   truncatedInput: boolean;
-  truncatedOutput: boolean;
+  truncatedOutput?: boolean;
+  pageIndex?: number;
+  pageCount?: number;
 }): EmbedBuilder {
   return new EmbedBuilder()
     .setColor(SUMMARY_EMBED_COLOR)
     .setTitle(clampEmbedTitle(`#${options.channelName} のまとめ`))
-    .setDescription(options.body)
+    .setDescription(options.body.slice(0, EMBED_DESCRIPTION_LIMIT))
     .setFooter({
       text: buildSummaryFooter({
         truncatedInput: options.truncatedInput,
-        truncatedOutput: options.truncatedOutput
+        truncatedOutput: options.truncatedOutput,
+        pageIndex: options.pageIndex,
+        pageCount: options.pageCount
       })
     });
 }
@@ -566,11 +676,13 @@ export async function summarizeChannelDay(options: SummarizeOptions): Promise<Su
     retries += 1;
   }
 
-  if (!needsShortenRetry(text) && text.length <= EMBED_DESCRIPTION_LIMIT) {
-    return { text, truncatedOutput: false };
-  }
-
-  return clampToEmbedDescription(text);
+  const pages = await resolveSummaryPages(text, generate);
+  const first = pages[0] ?? text;
+  return {
+    text: first,
+    pages,
+    truncatedOutput: false
+  };
 }
 
 export function resolveSummaryChannel(

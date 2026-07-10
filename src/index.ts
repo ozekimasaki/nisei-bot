@@ -2,6 +2,7 @@ import {
   Client,
   Events,
   GatewayIntentBits,
+  type ButtonInteraction,
   type ChatInputCommandInteraction,
   type Message
 } from "discord.js";
@@ -18,6 +19,8 @@ import {
   MAX_TRANSCRIPT_CHARS,
   resolveSummaryChannel,
   selectImagesForTranscript,
+  SUMMARY_MORE_BUTTON_ID,
+  SUMMARY_SKIP_BUTTON_ID,
   summarizeChannelDay,
   trimTranscript
 } from "./channel-summary.js";
@@ -27,6 +30,14 @@ import { MemoryStore, prisma } from "./db.js";
 import { MessageGuard } from "./message-guard.js";
 import { MathRandomSource } from "./random.js";
 import { ResponsePlanner } from "./responder.js";
+import {
+  advanceSummaryPage,
+  buildSummaryContinueComponents,
+  deleteSummaryPageSession,
+  getSummaryPageSession,
+  saveSummaryPageSession,
+  summaryContinueContent
+} from "./summary-page-store.js";
 
 const config = loadConfig();
 const store = new MemoryStore(prisma);
@@ -101,9 +112,14 @@ client.on(Events.MessageCreate, async (message: Message) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand() || !interaction.guildId) return;
-
   try {
+    if (interaction.isButton()) {
+      await handleSummaryButton(interaction);
+      return;
+    }
+
+    if (!interaction.isChatInputCommand() || !interaction.guildId) return;
+
     if (interaction.commandName === "nisei_summary") {
       await handleSummaryCommand(interaction);
       return;
@@ -114,10 +130,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
   } catch (error) {
     console.error("Failed to handle interaction", error);
     const message = "わからなくなった。あとでまたやる";
-    if (interaction.deferred || interaction.replied) {
-      await interaction.followUp({ content: message, ephemeral: true });
-    } else {
-      await interaction.reply({ content: message, ephemeral: true });
+    if (interaction.isRepliable()) {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({ content: message, ephemeral: true });
+      } else {
+        await interaction.reply({ content: message, ephemeral: true });
+      }
     }
   }
 });
@@ -191,14 +209,32 @@ async function handleSummaryCommand(interaction: ChatInputCommandInteraction): P
       images
     });
 
-    await replyEmbed(
-      buildSummaryEmbed({
+    const pageCount = summary.pages.length;
+    const hasMore = pageCount > 1;
+    const embed = buildSummaryEmbed({
+      channelName: channel.name,
+      body: summary.pages[0] ?? summary.text,
+      truncatedInput,
+      pageIndex: hasMore ? 0 : undefined,
+      pageCount: hasMore ? pageCount : undefined
+    });
+
+    const replied = await interaction.editReply({
+      content: summaryContinueContent(hasMore) ?? undefined,
+      embeds: [embed],
+      components: hasMore ? buildSummaryContinueComponents() : [],
+      allowedMentions: { parse: [] }
+    });
+
+    if (hasMore) {
+      saveSummaryPageSession(replied.id, {
+        userId: interaction.user.id,
         channelName: channel.name,
-        body: summary.text,
         truncatedInput,
-        truncatedOutput: summary.truncatedOutput
-      })
-    );
+        pages: summary.pages,
+        pageIndex: 0
+      });
+    }
   } catch (error) {
     console.error("Failed to summarize channel", error);
     if (error instanceof Error && error.message === "empty_gemini_response") {
@@ -206,6 +242,74 @@ async function handleSummaryCommand(interaction: ChatInputCommandInteraction): P
       return;
     }
     await replyEmbed(buildErrorEmbed("まとめられなかった。あとでまたやって"));
+  }
+}
+
+async function handleSummaryButton(interaction: ButtonInteraction): Promise<void> {
+  if (
+    interaction.customId !== SUMMARY_MORE_BUTTON_ID &&
+    interaction.customId !== SUMMARY_SKIP_BUTTON_ID
+  ) {
+    return;
+  }
+
+  const session = getSummaryPageSession(interaction.message.id);
+  if (!session) {
+    await interaction.reply({
+      content: "もうおそい。またまとめて",
+      ephemeral: true
+    });
+    return;
+  }
+
+  if (interaction.user.id !== session.userId) {
+    await interaction.reply({
+      content: "きみのまとめじゃない",
+      ephemeral: true
+    });
+    return;
+  }
+
+  await interaction.deferUpdate();
+
+  if (interaction.customId === SUMMARY_SKIP_BUTTON_ID) {
+    deleteSummaryPageSession(interaction.message.id);
+    await interaction.message.edit({
+      content: null,
+      components: [],
+      allowedMentions: { parse: [] }
+    });
+    return;
+  }
+
+  const updated = advanceSummaryPage(interaction.message.id);
+  if (!updated) {
+    await interaction.followUp({
+      content: "もうおそい。またまとめて",
+      ephemeral: true
+    });
+    return;
+  }
+
+  const page = updated.pages[updated.pageIndex] ?? "";
+  const hasMore = updated.pageIndex < updated.pages.length - 1;
+  const embed = buildSummaryEmbed({
+    channelName: updated.channelName,
+    body: page,
+    truncatedInput: updated.truncatedInput,
+    pageIndex: updated.pageIndex,
+    pageCount: updated.pages.length
+  });
+
+  await interaction.message.edit({
+    content: summaryContinueContent(hasMore),
+    embeds: [embed],
+    components: hasMore ? buildSummaryContinueComponents() : [],
+    allowedMentions: { parse: [] }
+  });
+
+  if (!hasMore) {
+    deleteSummaryPageSession(interaction.message.id);
   }
 }
 

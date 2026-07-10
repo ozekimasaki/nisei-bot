@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   applyImageLabels,
+  buildPaginatePrompt,
   buildShortenPrompt,
   buildSummaryFooter,
   buildSummaryPrompt,
@@ -9,11 +10,16 @@ import {
   EMBED_DESCRIPTION_LIMIT,
   EMBED_TITLE_LIMIT,
   formatTranscript,
+  isValidPagedSummary,
   loadSummaryImages,
   MAX_SHORTEN_RETRIES,
   MAX_SUMMARY_IMAGES,
   needsShortenRetry,
   OUTPUT_CUT_SUFFIX,
+  PAGE_CHAR_LIMIT,
+  PAGE_MARKER,
+  paginateSummaryFallback,
+  parsePagedSummary,
   resolveImageMime,
   selectImagesForTranscript,
   SOFT_OUTPUT_LIMIT,
@@ -21,6 +27,12 @@ import {
   trimTranscript,
   type TranscriptMessage
 } from "../src/channel-summary.js";
+import {
+  advanceSummaryPage,
+  deleteSummaryPageSession,
+  getSummaryPageSession,
+  saveSummaryPageSession
+} from "../src/summary-page-store.js";
 
 describe("formatTranscript", () => {
   it("formats author and content lines", () => {
@@ -235,6 +247,55 @@ describe("buildSummaryFooter", () => {
     expect(buildSummaryFooter({ truncatedInput: true, truncatedOutput: true })).toBe(
       "直近24時間・一部のみ・要約カット"
     );
+    expect(
+      buildSummaryFooter({ truncatedInput: false, pageIndex: 1, pageCount: 3 })
+    ).toBe("直近24時間・2/3");
+  });
+});
+
+describe("parsePagedSummary", () => {
+  it("splits on page marker", () => {
+    expect(parsePagedSummary(`一ページ\n${PAGE_MARKER}\n二ページ`)).toEqual([
+      "一ページ",
+      "二ページ"
+    ]);
+  });
+});
+
+describe("isValidPagedSummary", () => {
+  it("rejects single page or oversized pages", () => {
+    expect(isValidPagedSummary(["only"])).toBe(false);
+    expect(isValidPagedSummary(["a", "b"])).toBe(true);
+    expect(isValidPagedSummary(["あ".repeat(PAGE_CHAR_LIMIT + 1), "b"])).toBe(false);
+  });
+});
+
+describe("paginateSummaryFallback", () => {
+  it("keeps short text as one page", () => {
+    expect(paginateSummaryFallback("短い")).toEqual(["短い"]);
+  });
+
+  it("splits on blank lines within limit", () => {
+    const block = "あ".repeat(100);
+    const text = `${block}\n\n${block}\n\n${block}`;
+    const pages = paginateSummaryFallback(text, 150);
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.every((page) => page.length <= 150)).toBe(true);
+  });
+
+  it("hard-splits oversized blocks", () => {
+    const pages = paginateSummaryFallback("あ".repeat(PAGE_CHAR_LIMIT + 50), PAGE_CHAR_LIMIT);
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages.every((page) => page.length <= PAGE_CHAR_LIMIT)).toBe(true);
+  });
+});
+
+describe("buildPaginatePrompt", () => {
+  it("includes marker and limits", () => {
+    const prompt = buildPaginatePrompt("ながいまとめ");
+    expect(prompt).toContain(PAGE_MARKER);
+    expect(prompt).toContain(String(PAGE_CHAR_LIMIT));
+    expect(prompt).toContain("ながいまとめ");
   });
 });
 
@@ -256,7 +317,11 @@ describe("summarizeChannelDay", () => {
       truncatedInput: false,
       generateContent
     });
-    expect(result).toEqual({ text: "短いまとめ", truncatedOutput: false });
+    expect(result).toEqual({
+      text: "短いまとめ",
+      pages: ["短いまとめ"],
+      truncatedOutput: false
+    });
     expect(generateContent).toHaveBeenCalledTimes(1);
   });
 
@@ -276,13 +341,43 @@ describe("summarizeChannelDay", () => {
       images,
       generateContent
     });
-    expect(result).toEqual({ text: "短くした", truncatedOutput: false });
+    expect(result).toEqual({
+      text: "短くした",
+      pages: ["短くした"],
+      truncatedOutput: false
+    });
     expect(generateContent).toHaveBeenCalledTimes(2);
     expect(generateContent.mock.calls[0]?.[1]).toEqual(images);
     expect(generateContent.mock.calls[1]?.[1]).toBeUndefined();
   });
 
-  it("retries shorten up to 3 times then hard-cuts", async () => {
+  it("retries shorten then paginates with Gemini", async () => {
+    const long = "あ".repeat(SOFT_OUTPUT_LIMIT + 50);
+    const page1 = "一ページめ";
+    const page2 = "二ページめ";
+    const generateContent = vi
+      .fn()
+      .mockResolvedValueOnce(long)
+      .mockResolvedValueOnce(long)
+      .mockResolvedValueOnce(long)
+      .mockResolvedValueOnce(long)
+      .mockResolvedValueOnce(`${page1}\n${PAGE_MARKER}\n${page2}`);
+    const result = await summarizeChannelDay({
+      apiKey: "test",
+      model: "gemini-3.5-flash",
+      thinkingLevel: "medium",
+      transcript: "a: hi",
+      truncatedInput: false,
+      generateContent
+    });
+    expect(generateContent).toHaveBeenCalledTimes(1 + MAX_SHORTEN_RETRIES + 1);
+    expect(result.pages).toEqual([page1, page2]);
+    expect(result.text).toBe(page1);
+    expect(result.truncatedOutput).toBe(false);
+    expect(generateContent.mock.calls.at(-1)?.[0]).toContain(PAGE_MARKER);
+  });
+
+  it("falls back to mechanical pages when Gemini split is invalid", async () => {
     const long = "あ".repeat(SOFT_OUTPUT_LIMIT + 50);
     const generateContent = vi.fn(async () => long);
     const result = await summarizeChannelDay({
@@ -293,10 +388,11 @@ describe("summarizeChannelDay", () => {
       truncatedInput: false,
       generateContent
     });
-    expect(generateContent).toHaveBeenCalledTimes(1 + MAX_SHORTEN_RETRIES);
-    expect(result.truncatedOutput).toBe(true);
-    expect(result.text.endsWith(OUTPUT_CUT_SUFFIX)).toBe(true);
-    expect(result.text.length).toBeLessThanOrEqual(EMBED_DESCRIPTION_LIMIT);
+    expect(generateContent).toHaveBeenCalledTimes(1 + MAX_SHORTEN_RETRIES + 1);
+    expect(result.pages.length).toBeGreaterThan(1);
+    expect(result.pages.every((page) => page.length <= PAGE_CHAR_LIMIT)).toBe(true);
+    expect(result.text).toBe(result.pages[0]);
+    expect(result.truncatedOutput).toBe(false);
   });
 
   it("stops retrying once shortened enough", async () => {
@@ -314,7 +410,11 @@ describe("summarizeChannelDay", () => {
       generateContent
     });
     expect(generateContent).toHaveBeenCalledTimes(2);
-    expect(result).toEqual({ text: "短くした", truncatedOutput: false });
+    expect(result).toEqual({
+      text: "短くした",
+      pages: ["短くした"],
+      truncatedOutput: false
+    });
   });
 
   it("throws on empty response", async () => {
@@ -328,5 +428,22 @@ describe("summarizeChannelDay", () => {
         generateContent: async () => ""
       })
     ).rejects.toThrow("empty_gemini_response");
+  });
+});
+
+describe("summary page store", () => {
+  it("advances pages for the saved session", () => {
+    saveSummaryPageSession("msg1", {
+      userId: "u1",
+      channelName: "general",
+      truncatedInput: false,
+      pages: ["p1", "p2", "p3"],
+      pageIndex: 0
+    });
+    expect(getSummaryPageSession("msg1")?.pageIndex).toBe(0);
+    expect(advanceSummaryPage("msg1")?.pageIndex).toBe(1);
+    expect(advanceSummaryPage("msg1")?.pageIndex).toBe(2);
+    deleteSummaryPageSession("msg1");
+    expect(getSummaryPageSession("msg1")).toBeNull();
   });
 });

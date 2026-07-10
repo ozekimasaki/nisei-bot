@@ -258,7 +258,7 @@ pm2 restart nisei-bot --update-env
 - `/nisei_hatsugen level:5 reset:true` … 発言レベルを env デフォルトに戻す
 - `/nisei_summary channel:#...` … 指定チャンネルの直近24時間を Gemini でにせい口調でまとめる（Embed 1つ）
 
-`/nisei_summary` を使うには `.env` に `GEMINI_API_KEY` が必要です。モデルは `GEMINI_MODEL`（初期値 `gemini-3.5-flash`）、thinking は `GEMINI_THINKING_LEVEL`（初期値 `medium`）で変更できます。直近24時間のテキストに加え、チャンネル内の画像添付（最大12枚・各4MBまで）も Gemini に渡して要約します。コマンド追加・変更後は `npm run deploy:commands` を実行してください。
+`/nisei_summary` を使うには `.env` に `GEMINI_API_KEY` が必要です。モデルは `GEMINI_MODEL`（初期値 `gemini-3.5-flash`）、thinking は `GEMINI_THINKING_LEVEL`（初期値 `medium`）で変更できます。直近24時間のテキストに加え、チャンネル内の画像添付（最大12枚・各4MBまで）も Gemini に渡して要約します。長いときは「つづきみる？」ボタンで続きを同じメッセージ内に表示します（区切りは Gemini、失敗時は機械分割）。コマンド追加・変更後は `npm run deploy:commands` を実行してください。
 
 ### 反応するワード・パターン
 
