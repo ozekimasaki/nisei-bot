@@ -68,6 +68,8 @@ describe("buildSummaryPrompt", () => {
     expect(prompt).toContain("にせい");
     expect(prompt).toContain("【構成】");
     expect(prompt).toContain("【よい例（この感じで書く）】");
+    expect(prompt).toContain("呼び捨て");
+    expect(prompt).toContain("絵文字");
     expect(prompt).toContain("a: hi");
     expect(prompt).not.toContain("ログは一部のみ");
   });
