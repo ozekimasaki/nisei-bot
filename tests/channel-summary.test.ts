@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  applyImageLabels,
   buildShortenPrompt,
   buildSummaryFooter,
   buildSummaryPrompt,
@@ -8,9 +9,13 @@ import {
   EMBED_DESCRIPTION_LIMIT,
   EMBED_TITLE_LIMIT,
   formatTranscript,
+  loadSummaryImages,
   MAX_SHORTEN_RETRIES,
+  MAX_SUMMARY_IMAGES,
   needsShortenRetry,
   OUTPUT_CUT_SUFFIX,
+  resolveImageMime,
+  selectImagesForTranscript,
   SOFT_OUTPUT_LIMIT,
   summarizeChannelDay,
   trimTranscript,
@@ -45,6 +50,95 @@ describe("formatTranscript", () => {
   });
 });
 
+describe("resolveImageMime", () => {
+  it("resolves from content type or filename", () => {
+    expect(
+      resolveImageMime({
+        contentType: "image/png",
+        name: "a.bin",
+        size: 10,
+        url: "https://example.com/a"
+      } as never)
+    ).toBe("image/png");
+    expect(
+      resolveImageMime({
+        contentType: null,
+        name: "cat.WEBP",
+        size: 10,
+        url: "https://example.com/a"
+      } as never)
+    ).toBe("image/webp");
+    expect(
+      resolveImageMime({
+        contentType: "application/pdf",
+        name: "doc.pdf",
+        size: 10,
+        url: "https://example.com/a"
+      } as never)
+    ).toBeNull();
+  });
+});
+
+describe("applyImageLabels", () => {
+  it("labels newest images first when over max", () => {
+    const messages: TranscriptMessage[] = Array.from({ length: MAX_SUMMARY_IMAGES + 2 }, (_, i) => ({
+      authorName: `u${i}`,
+      content: "",
+      createdTimestamp: i + 1,
+      bot: false,
+      images: [
+        {
+          url: `https://example.com/${i}.png`,
+          mimeType: "image/png",
+          size: 100
+        }
+      ]
+    }));
+
+    const result = applyImageLabels(messages);
+    expect(result.truncatedImages).toBe(true);
+    expect(result.pending).toHaveLength(MAX_SUMMARY_IMAGES);
+    expect(result.messages).toHaveLength(MAX_SUMMARY_IMAGES);
+    expect(result.pending[0]?.label).toBe("画像1");
+    expect(result.pending[0]?.url).toBe("https://example.com/2.png");
+    expect(result.messages[0]?.content).toBe("[画像1]");
+    expect(result.messages.at(-1)?.content).toBe(`[画像${MAX_SUMMARY_IMAGES}]`);
+  });
+});
+
+describe("selectImagesForTranscript", () => {
+  it("keeps only images referenced in transcript", () => {
+    const pending = [
+      { label: "画像1", url: "https://a", mimeType: "image/png", size: 1 },
+      { label: "画像2", url: "https://b", mimeType: "image/png", size: 1 }
+    ];
+    expect(selectImagesForTranscript("太郎: [画像2] みた", pending)).toEqual([pending[1]]);
+  });
+});
+
+describe("loadSummaryImages", () => {
+  it("loads base64 from fetch", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(Buffer.from("hello"), {
+          status: 200,
+          headers: { "content-type": "image/png" }
+        })
+    );
+    const loaded = await loadSummaryImages(
+      [{ label: "画像1", url: "https://example.com/a.png", mimeType: "image/png", size: 5 }],
+      fetchImpl as unknown as typeof fetch
+    );
+    expect(loaded).toEqual([
+      {
+        label: "画像1",
+        mimeType: "image/png",
+        base64: Buffer.from("hello").toString("base64")
+      }
+    ]);
+  });
+});
+
 describe("trimTranscript", () => {
   it("keeps newer lines when over char limit", () => {
     const lines = ["old: aaaaa", "mid: bbbbb", "new: ccccc"];
@@ -63,7 +157,7 @@ describe("trimTranscript", () => {
 
 describe("buildSummaryPrompt", () => {
   it("includes soft limit and nisei style instructions", () => {
-    const prompt = buildSummaryPrompt("a: hi", { truncatedInput: false });
+    const prompt = buildSummaryPrompt("a: hi", { truncatedInput: false, imageCount: 0 });
     expect(prompt).toContain(String(SOFT_OUTPUT_LIMIT));
     expect(prompt).toContain("にせい");
     expect(prompt).toContain("【構成】");
@@ -72,10 +166,20 @@ describe("buildSummaryPrompt", () => {
     expect(prompt).toContain("絵文字");
     expect(prompt).toContain("a: hi");
     expect(prompt).not.toContain("ログは一部のみ");
+    expect(prompt).not.toContain("【画像】");
+  });
+
+  it("notes images when present", () => {
+    const prompt = buildSummaryPrompt("a: [画像1]", {
+      truncatedInput: false,
+      imageCount: 2
+    });
+    expect(prompt).toContain("【画像】");
+    expect(prompt).toContain("2 枚");
   });
 
   it("notes partial logs when truncated", () => {
-    const prompt = buildSummaryPrompt("a: hi", { truncatedInput: true });
+    const prompt = buildSummaryPrompt("a: hi", { truncatedInput: true, imageCount: 0 });
     expect(prompt).toContain("ログは一部のみ");
   });
 });
@@ -154,6 +258,28 @@ describe("summarizeChannelDay", () => {
     });
     expect(result).toEqual({ text: "短いまとめ", truncatedOutput: false });
     expect(generateContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends images only on the first call", async () => {
+    const long = "あ".repeat(SOFT_OUTPUT_LIMIT + 10);
+    const images = [{ label: "画像1", mimeType: "image/png", base64: "aaaa" }];
+    const generateContent = vi
+      .fn()
+      .mockResolvedValueOnce(long)
+      .mockResolvedValueOnce("短くした");
+    const result = await summarizeChannelDay({
+      apiKey: "test",
+      model: "gemini-3.5-flash",
+      thinkingLevel: "medium",
+      transcript: "a: [画像1]",
+      truncatedInput: false,
+      images,
+      generateContent
+    });
+    expect(result).toEqual({ text: "短くした", truncatedOutput: false });
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(generateContent.mock.calls[0]?.[1]).toEqual(images);
+    expect(generateContent.mock.calls[1]?.[1]).toBeUndefined();
   });
 
   it("retries shorten up to 3 times then hard-cuts", async () => {

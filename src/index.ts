@@ -6,6 +6,7 @@ import {
   type Message
 } from "discord.js";
 import {
+  applyImageLabels,
   buildEmptySummaryEmbed,
   buildErrorEmbed,
   buildSummaryEmbed,
@@ -13,8 +14,10 @@ import {
   canMemberViewChannel,
   fetchMessagesSince,
   formatTranscript,
+  loadSummaryImages,
   MAX_TRANSCRIPT_CHARS,
   resolveSummaryChannel,
+  selectImagesForTranscript,
   summarizeChannelDay,
   trimTranscript
 } from "./channel-summary.js";
@@ -166,9 +169,13 @@ async function handleSummaryCommand(interaction: ChatInputCommandInteraction): P
   try {
     const sinceMs = Date.now() - 24 * 60 * 60 * 1000;
     const fetched = await fetchMessagesSince(channel, sinceMs);
-    const lines = formatTranscript(fetched.messages);
+    const labeled = applyImageLabels(fetched.messages);
+    const lines = formatTranscript(labeled.messages);
     const trimmed = trimTranscript(lines, MAX_TRANSCRIPT_CHARS);
-    const truncatedInput = fetched.truncatedInput || trimmed.truncatedInput;
+    const pendingImages = selectImagesForTranscript(trimmed.transcript, labeled.pending);
+    const images = await loadSummaryImages(pendingImages);
+    const truncatedInput =
+      fetched.truncatedInput || trimmed.truncatedInput || labeled.truncatedImages;
 
     if (!trimmed.transcript) {
       await replyEmbed(buildEmptySummaryEmbed(channel.name));
@@ -180,7 +187,8 @@ async function handleSummaryCommand(interaction: ChatInputCommandInteraction): P
       model: config.geminiModel,
       thinkingLevel: config.geminiThinkingLevel,
       transcript: trimmed.transcript,
-      truncatedInput
+      truncatedInput,
+      images
     });
 
     await replyEmbed(

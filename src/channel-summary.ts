@@ -1,8 +1,9 @@
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, type Part } from "@google/genai";
 import {
   ChannelType,
   EmbedBuilder,
   PermissionFlagsBits,
+  type Attachment,
   type GuildBasedChannel,
   type Message,
   type TextChannel
@@ -17,12 +18,42 @@ export const EMBED_TITLE_LIMIT = 256;
 export const MAX_SHORTEN_RETRIES = 3;
 export const OUTPUT_CUT_SUFFIX = "…ながすぎた";
 export const SUMMARY_EMBED_COLOR = 0x5b8c5a;
+export const MAX_SUMMARY_IMAGES = 12;
+export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+export const IMAGE_FETCH_TIMEOUT_MS = 15_000;
+
+const SUPPORTED_IMAGE_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif"
+]);
+
+export type MessageImageRef = {
+  url: string;
+  mimeType: string;
+  size: number;
+};
 
 export type TranscriptMessage = {
   authorName: string;
   content: string;
   createdTimestamp: number;
   bot: boolean;
+  images?: MessageImageRef[];
+};
+
+export type PendingImage = {
+  label: string;
+  url: string;
+  mimeType: string;
+  size: number;
+};
+
+export type SummaryImagePart = {
+  label: string;
+  mimeType: string;
+  base64: string;
 };
 
 export type TruncationFlags = {
@@ -40,13 +71,19 @@ export type TrimTranscriptResult = {
   truncatedInput: boolean;
 };
 
+export type GenerateContentFn = (
+  prompt: string,
+  images?: SummaryImagePart[]
+) => Promise<string>;
+
 export type SummarizeOptions = {
   apiKey: string;
   model: string;
   thinkingLevel: GeminiThinkingLevel;
   transcript: string;
   truncatedInput: boolean;
-  generateContent?: (prompt: string) => Promise<string>;
+  images?: SummaryImagePart[];
+  generateContent?: GenerateContentFn;
 };
 
 export type SummarizeResult = {
@@ -85,12 +122,22 @@ export function canMemberViewChannel(
   return perms.has(PermissionFlagsBits.ViewChannel);
 }
 
+export function resolveImageMime(attachment: Attachment): string | null {
+  const raw = (attachment.contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+  if (SUPPORTED_IMAGE_MIME.has(raw)) return raw;
+
+  const name = attachment.name?.toLowerCase() ?? "";
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+  if (name.endsWith(".png")) return "image/png";
+  if (name.endsWith(".webp")) return "image/webp";
+  if (name.endsWith(".gif")) return "image/gif";
+  return null;
+}
+
 export function formatMessageLine(message: TranscriptMessage): string | null {
-  const parts: string[] = [];
   const text = message.content.trim();
-  if (text) parts.push(text);
-  if (parts.length === 0) return null;
-  return `${message.authorName}: ${parts.join(" ")}`;
+  if (!text) return null;
+  return `${message.authorName}: ${text}`;
 }
 
 export function formatTranscript(messages: TranscriptMessage[]): string[] {
@@ -106,28 +153,107 @@ export function messageToTranscript(message: Message): TranscriptMessage | null 
   if (message.system) return null;
 
   const parts: string[] = [];
+  const images: MessageImageRef[] = [];
   const text = message.content.trim();
   if (text) parts.push(text);
 
   for (const attachment of message.attachments.values()) {
+    const mimeType = resolveImageMime(attachment);
+    const size = attachment.size ?? 0;
+    if (mimeType && size > 0 && size <= MAX_IMAGE_BYTES) {
+      images.push({
+        url: attachment.url,
+        mimeType,
+        size
+      });
+      continue;
+    }
+
     const contentType = attachment.contentType ?? "";
     if (contentType.includes("gif") || attachment.name?.toLowerCase().endsWith(".gif")) {
       parts.push("[GIF]");
-    } else if (contentType.startsWith("image/")) {
+    } else if (contentType.startsWith("image/") || mimeType) {
       parts.push("[画像]");
     } else {
       parts.push("[添付]");
     }
   }
 
-  if (parts.length === 0) return null;
+  if (parts.length === 0 && images.length === 0) return null;
 
   return {
     authorName: message.member?.displayName ?? message.author.displayName ?? message.author.username,
     content: parts.join(" "),
     createdTimestamp: message.createdTimestamp,
-    bot: message.author.bot
+    bot: message.author.bot,
+    images: images.length > 0 ? images : undefined
   };
+}
+
+export function applyImageLabels(
+  messages: TranscriptMessage[],
+  maxImages: number = MAX_SUMMARY_IMAGES
+): {
+  messages: TranscriptMessage[];
+  pending: PendingImage[];
+  truncatedImages: boolean;
+} {
+  type Candidate = MessageImageRef & { msgIndex: number; createdTimestamp: number };
+  const candidates: Candidate[] = [];
+  for (let i = 0; i < messages.length; i += 1) {
+    const message = messages[i]!;
+    for (const image of message.images ?? []) {
+      candidates.push({
+        ...image,
+        msgIndex: i,
+        createdTimestamp: message.createdTimestamp
+      });
+    }
+  }
+
+  candidates.sort((a, b) => b.createdTimestamp - a.createdTimestamp);
+  const truncatedImages = candidates.length > maxImages;
+  const selected = candidates
+    .slice(0, maxImages)
+    .sort((a, b) => a.createdTimestamp - b.createdTimestamp || a.msgIndex - b.msgIndex);
+
+  const pending: PendingImage[] = [];
+  const labelsByMessage = new Map<number, string[]>();
+  selected.forEach((image, index) => {
+    const label = `画像${index + 1}`;
+    pending.push({
+      label,
+      url: image.url,
+      mimeType: image.mimeType,
+      size: image.size
+    });
+    const list = labelsByMessage.get(image.msgIndex) ?? [];
+    list.push(`[${label}]`);
+    labelsByMessage.set(image.msgIndex, list);
+  });
+
+  const labeledMessages: TranscriptMessage[] = [];
+  for (let i = 0; i < messages.length; i += 1) {
+    const message = messages[i]!;
+    const tags = labelsByMessage.get(i) ?? [];
+    const content = [message.content.trim(), ...tags].filter(Boolean).join(" ");
+    if (!content) continue;
+    labeledMessages.push({
+      authorName: message.authorName,
+      content,
+      createdTimestamp: message.createdTimestamp,
+      bot: message.bot
+    });
+  }
+
+  return { messages: labeledMessages, pending, truncatedImages };
+}
+
+export function selectImagesForTranscript(
+  transcript: string,
+  pending: PendingImage[]
+): PendingImage[] {
+  return pending.filter((image) => transcript.includes(`[${image.label}]`));
 }
 
 export function trimTranscript(lines: string[], maxChars: number): TrimTranscriptResult {
@@ -196,9 +322,39 @@ export async function fetchMessagesSince(
   return { messages: collected, truncatedInput };
 }
 
+export async function loadSummaryImages(
+  pending: PendingImage[],
+  fetchImpl: typeof fetch = fetch
+): Promise<SummaryImagePart[]> {
+  const loaded: SummaryImagePart[] = [];
+
+  for (const image of pending) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
+      const response = await fetchImpl(image.url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!response.ok) continue;
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.byteLength === 0 || buffer.byteLength > MAX_IMAGE_BYTES) continue;
+
+      loaded.push({
+        label: image.label,
+        mimeType: image.mimeType,
+        base64: buffer.toString("base64")
+      });
+    } catch (error) {
+      console.error(`Failed to load summary image ${image.label}`, error);
+    }
+  }
+
+  return loaded;
+}
+
 export function buildSummaryPrompt(
   transcript: string,
-  options: { truncatedInput: boolean }
+  options: { truncatedInput: boolean; imageCount: number }
 ): string {
   const notes = [
     "あなたは Discord bot「にせい」。幼稚園児くらいのアホの子。",
@@ -229,6 +385,17 @@ export function buildSummaryPrompt(
     "とりはずっとぴぴぴぴ言ってた。",
     "にせいはステータス「まるい」を報告したよ！おやつはお煎餅。"
   ];
+
+  if (options.imageCount > 0) {
+    notes.push(
+      "",
+      "【画像】",
+      `- あとに ${options.imageCount} 枚の画像が付く。ログの[画像N]がその画像。`,
+      "- 画像に写っているものを見て、にせい口調で短く触れてよい。",
+      "- 画像にないことは言わない。全部の画像に触れなくてもよい。"
+    );
+  }
+
   if (options.truncatedInput) {
     notes.push("", "※ログは一部のみ（新しい方優先）。欠けた部分は推測しない。");
   }
@@ -311,16 +478,33 @@ export function buildEmptySummaryEmbed(channelName: string): EmbedBuilder {
   });
 }
 
+function buildContents(prompt: string, images?: SummaryImagePart[]): Part[] {
+  const parts: Part[] = [{ text: prompt }];
+  if (!images || images.length === 0) return parts;
+
+  for (const image of images) {
+    parts.push({ text: `\n(${image.label})` });
+    parts.push({
+      inlineData: {
+        mimeType: image.mimeType,
+        data: image.base64
+      }
+    });
+  }
+  return parts;
+}
+
 async function defaultGenerateContent(
   apiKey: string,
   model: string,
   thinkingLevel: GeminiThinkingLevel,
-  prompt: string
+  prompt: string,
+  images?: SummaryImagePart[]
 ): Promise<string> {
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model,
-    contents: prompt,
+    contents: buildContents(prompt, images),
     config: {
       thinkingConfig: {
         thinkingLevel: toSdkThinkingLevel(thinkingLevel)
@@ -348,14 +532,25 @@ function toSdkThinkingLevel(level: GeminiThinkingLevel): ThinkingLevel {
 }
 
 export async function summarizeChannelDay(options: SummarizeOptions): Promise<SummarizeResult> {
-  const generate =
+  const images = options.images ?? [];
+  const generate: GenerateContentFn =
     options.generateContent ??
-    ((prompt: string) =>
-      defaultGenerateContent(options.apiKey, options.model, options.thinkingLevel, prompt));
+    ((prompt, imageParts) =>
+      defaultGenerateContent(
+        options.apiKey,
+        options.model,
+        options.thinkingLevel,
+        prompt,
+        imageParts
+      ));
 
-  let text = await generate(buildSummaryPrompt(options.transcript, {
-    truncatedInput: options.truncatedInput
-  }));
+  let text = await generate(
+    buildSummaryPrompt(options.transcript, {
+      truncatedInput: options.truncatedInput,
+      imageCount: images.length
+    }),
+    images.length > 0 ? images : undefined
+  );
 
   if (!text) {
     throw new Error("empty_gemini_response");
@@ -363,6 +558,7 @@ export async function summarizeChannelDay(options: SummarizeOptions): Promise<Su
 
   let retries = 0;
   while (needsShortenRetry(text) && retries < MAX_SHORTEN_RETRIES) {
+    // 短縮はテキストのみ（画像の再送はしない）
     text = await generate(buildShortenPrompt(text));
     if (!text) {
       throw new Error("empty_gemini_response");
