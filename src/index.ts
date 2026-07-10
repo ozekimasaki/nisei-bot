@@ -5,6 +5,19 @@ import {
   type ChatInputCommandInteraction,
   type Message
 } from "discord.js";
+import {
+  buildEmptySummaryEmbed,
+  buildErrorEmbed,
+  buildSummaryEmbed,
+  canBotReadChannel,
+  canMemberViewChannel,
+  fetchMessagesSince,
+  formatTranscript,
+  MAX_TRANSCRIPT_CHARS,
+  resolveSummaryChannel,
+  summarizeChannelDay,
+  trimTranscript
+} from "./channel-summary.js";
 import { loadConfig } from "./config.js";
 import { ChannelActivityTracker } from "./channel-activity.js";
 import { MemoryStore, prisma } from "./db.js";
@@ -88,6 +101,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand() || !interaction.guildId) return;
 
   try {
+    if (interaction.commandName === "nisei_summary") {
+      await handleSummaryCommand(interaction);
+      return;
+    }
+
     const response = await handleCommand(interaction);
     await interaction.reply(response);
   } catch (error) {
@@ -100,6 +118,88 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 });
+
+async function handleSummaryCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    await interaction.reply({
+      embeds: [buildErrorEmbed("サーバーじゃないとまとめられない")],
+      allowedMentions: { parse: [] }
+    });
+    return;
+  }
+
+  await interaction.deferReply();
+  await store.rememberUser(guildId, interaction.user.id, interactionDisplayName(interaction));
+
+  const replyEmbed = async (embed: ReturnType<typeof buildErrorEmbed>) => {
+    await interaction.editReply({
+      embeds: [embed],
+      allowedMentions: { parse: [] }
+    });
+  };
+
+  if (!config.geminiApiKey) {
+    await replyEmbed(buildErrorEmbed("Geminiのキーがない。`.env` に `GEMINI_API_KEY` 書いて"));
+    return;
+  }
+
+  const selected = interaction.options.getChannel("channel", true);
+  const fetchedChannel =
+    (await interaction.guild?.channels.fetch(selected.id).catch(() => null)) ?? null;
+  const channel = resolveSummaryChannel(fetchedChannel);
+  if (!channel) {
+    await replyEmbed(buildErrorEmbed("そのチャンネルまとめられない"));
+    return;
+  }
+
+  const botUserId = client.user?.id;
+  if (!botUserId || !canBotReadChannel(channel, botUserId)) {
+    await replyEmbed(buildErrorEmbed("にせいが読めない。権限みて"));
+    return;
+  }
+  if (!canMemberViewChannel(channel, interaction.user.id)) {
+    await replyEmbed(buildErrorEmbed("きみはそのチャンネル見れない"));
+    return;
+  }
+
+  try {
+    const sinceMs = Date.now() - 24 * 60 * 60 * 1000;
+    const fetched = await fetchMessagesSince(channel, sinceMs);
+    const lines = formatTranscript(fetched.messages);
+    const trimmed = trimTranscript(lines, MAX_TRANSCRIPT_CHARS);
+    const truncatedInput = fetched.truncatedInput || trimmed.truncatedInput;
+
+    if (!trimmed.transcript) {
+      await replyEmbed(buildEmptySummaryEmbed(channel.name));
+      return;
+    }
+
+    const summary = await summarizeChannelDay({
+      apiKey: config.geminiApiKey,
+      model: config.geminiModel,
+      thinkingLevel: config.geminiThinkingLevel,
+      transcript: trimmed.transcript,
+      truncatedInput
+    });
+
+    await replyEmbed(
+      buildSummaryEmbed({
+        channelName: channel.name,
+        body: summary.text,
+        truncatedInput,
+        truncatedOutput: summary.truncatedOutput
+      })
+    );
+  } catch (error) {
+    console.error("Failed to summarize channel", error);
+    if (error instanceof Error && error.message === "empty_gemini_response") {
+      await replyEmbed(buildErrorEmbed("なにも言えなくなった"));
+      return;
+    }
+    await replyEmbed(buildErrorEmbed("まとめられなかった。あとでまたやって"));
+  }
+}
 
 async function handleCommand(interaction: ChatInputCommandInteraction): Promise<string> {
   const guildId = interaction.guildId;

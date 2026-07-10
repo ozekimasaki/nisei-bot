@@ -4,6 +4,8 @@ import { talkLevelFromTalkativeness } from "./talk-level.js";
 
 export type Talkativeness = "quiet" | "normal" | "loud";
 
+export type GeminiThinkingLevel = "minimal" | "low" | "medium" | "high";
+
 export type AppConfig = {
   discordToken: string;
   clientId: string;
@@ -39,6 +41,9 @@ export type AppConfig = {
   wikiUserAgent: string;
   idleChatterRate: number;
   idleChatterMinutes: number;
+  geminiApiKey?: string;
+  geminiModel: string;
+  geminiThinkingLevel: GeminiThinkingLevel;
 };
 
 function requiredEnv(name: string): string {
@@ -63,6 +68,14 @@ function talkativenessEnv(): Talkativeness {
   const raw = process.env.TALKATIVENESS ?? "normal";
   if (raw === "quiet" || raw === "normal" || raw === "loud") return raw;
   throw new Error("TALKATIVENESS must be quiet, normal, or loud");
+}
+
+function geminiThinkingLevelEnv(): GeminiThinkingLevel {
+  const raw = process.env.GEMINI_THINKING_LEVEL ?? "medium";
+  if (raw === "minimal" || raw === "low" || raw === "medium" || raw === "high") {
+    return raw;
+  }
+  throw new Error("GEMINI_THINKING_LEVEL must be minimal, low, medium, or high");
 }
 
 function defaultTalkLevelEnv(talkativeness: Talkativeness): number {
@@ -123,6 +136,9 @@ export function loadConfig(): AppConfig {
       process.env.WIKI_USER_AGENT ??
       "nisei-bot/0.1 (chisei-oss; https://github.com/chisei-oss/chisei-oss)",
     idleChatterRate: numberEnv("IDLE_CHATTER_RATE", 0.015),
-    idleChatterMinutes: numberEnv("IDLE_CHATTER_MINUTES", 30)
+    idleChatterMinutes: numberEnv("IDLE_CHATTER_MINUTES", 30),
+    geminiApiKey: process.env.GEMINI_API_KEY || undefined,
+    geminiModel: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
+    geminiThinkingLevel: geminiThinkingLevelEnv()
   };
 }

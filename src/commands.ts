@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { ChannelType, SlashCommandBuilder } from "discord.js";
 
 export const slashCommands = [
   new SlashCommandBuilder()
@@ -74,5 +74,15 @@ export const slashCommands = [
         .setName("reset")
         .setDescription("true=デフォルトに戻す")
         .setRequired(false)
+    ),
+  new SlashCommandBuilder()
+    .setName("nisei_summary")
+    .setDescription("指定チャンネルの直近24時間をにせいがまとめる")
+    .addChannelOption((option) =>
+      option
+        .setName("channel")
+        .setDescription("まとめるチャンネル")
+        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+        .setRequired(true)
     )
 ].map((command) => command.toJSON());

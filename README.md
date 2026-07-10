@@ -53,6 +53,9 @@ AFFECTION_GAIN_RATE=1
 MISUNDERSTANDING_REUSE_RATE=0.15
 SILENCE_RATE=0.12
 EMOJI_USE_RATE=0.18
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.5-flash
+GEMINI_THINKING_LEVEL=medium
 ```
 
 PostgreSQLにDBとユーザーを作成してから、migrationを実行します。
@@ -251,6 +254,9 @@ pm2 restart nisei-bot --update-env
 - `/nisei_shizuka on:true/false` … このチャンネルを静かにする / 戻す
 - `/nisei_hatsugen level:0-10` … サーバー全体の発言レベル（0=黙る、5=ふつう、10=多め）
 - `/nisei_hatsugen level:5 reset:true` … 発言レベルを env デフォルトに戻す
+- `/nisei_summary channel:#...` … 指定チャンネルの直近24時間を Gemini でにせい口調でまとめる（Embed 1つ）
+
+`/nisei_summary` を使うには `.env` に `GEMINI_API_KEY` が必要です。モデルは `GEMINI_MODEL`（初期値 `gemini-3.5-flash`）、thinking は `GEMINI_THINKING_LEVEL`（初期値 `medium`）で変更できます。コマンド追加・変更後は `npm run deploy:commands` を実行してください。
 
 ### 反応するワード・パターン
 
