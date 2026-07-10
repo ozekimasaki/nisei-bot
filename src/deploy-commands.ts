@@ -9,7 +9,12 @@ if (config.guildId) {
   await rest.put(Routes.applicationGuildCommands(config.clientId, config.guildId), {
     body: slashCommands
   });
+  // グローバル側が残っていると同一名コマンドが二重表示されるため空にする
+  await rest.put(Routes.applicationCommands(config.clientId), {
+    body: []
+  });
   console.log(`Deployed ${slashCommands.length} guild commands to ${config.guildId}`);
+  console.log("Cleared global commands to avoid duplicates");
 } else {
   await rest.put(Routes.applicationCommands(config.clientId), {
     body: slashCommands

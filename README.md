@@ -182,6 +182,8 @@ npm run build
 
 `npm run deploy:commands` が `Missing Access` になる場合は、`CLIENT_ID` のbotが `GUILD_ID` のサーバーへ招待されているか確認してください。
 
+`GUILD_ID` を設定している場合、ギルドコマンドを登録しつつグローバルコマンドを空にして二重表示を防ぎます。以前グローバル登録したことがあるサーバーでは、`npm run deploy:commands` を再実行すると解消します（グローバル側の反映に最大1時間かかることがあります）。
+
 ### 5. Start with pm2
 
 ```bash
