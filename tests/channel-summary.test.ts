@@ -62,10 +62,12 @@ describe("trimTranscript", () => {
 });
 
 describe("buildSummaryPrompt", () => {
-  it("includes soft limit and nisei instructions", () => {
+  it("includes soft limit and nisei style instructions", () => {
     const prompt = buildSummaryPrompt("a: hi", { truncatedInput: false });
     expect(prompt).toContain(String(SOFT_OUTPUT_LIMIT));
     expect(prompt).toContain("にせい");
+    expect(prompt).toContain("【構成】");
+    expect(prompt).toContain("【よい例（この感じで書く）】");
     expect(prompt).toContain("a: hi");
     expect(prompt).not.toContain("ログは一部のみ");
   });
@@ -77,10 +79,11 @@ describe("buildSummaryPrompt", () => {
 });
 
 describe("buildShortenPrompt", () => {
-  it("asks to rewrite within soft limit", () => {
+  it("asks to rewrite within soft limit keeping block structure", () => {
     const prompt = buildShortenPrompt("ながいまとめ");
     expect(prompt).toContain(String(SOFT_OUTPUT_LIMIT));
     expect(prompt).toContain("ながいまとめ");
+    expect(prompt).toContain("話題ブロック");
   });
 });
 
