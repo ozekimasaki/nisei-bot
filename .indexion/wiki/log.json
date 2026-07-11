@@ -1,0 +1,357 @@
+[
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Overview",
+    "details": {},
+    "affected_pages": [
+      "overview"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Getting Started",
+    "details": {},
+    "affected_pages": [
+      "getting-started"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Architecture",
+    "details": {},
+    "affected_pages": [
+      "architecture"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Intent Classification",
+    "details": {},
+    "affected_pages": [
+      "intent-classification"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Response Pipeline",
+    "details": {},
+    "affected_pages": [
+      "response-pipeline"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Memory Store",
+    "details": {},
+    "affected_pages": [
+      "memory-store"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Feature Engines",
+    "details": {},
+    "affected_pages": [
+      "feature-engines"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Discord Integration",
+    "details": {},
+    "affected_pages": [
+      "discord-integration"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Personality and Mood",
+    "details": {},
+    "affected_pages": [
+      "personality-and-mood"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Configuration",
+    "details": {},
+    "affected_pages": [
+      "configuration"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Deployment",
+    "details": {},
+    "affected_pages": [
+      "deployment"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Testing",
+    "details": {},
+    "affected_pages": [
+      "testing"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages add",
+    "actor": "agent:cursor",
+    "summary": "Added page: Agent Ownership",
+    "details": {},
+    "affected_pages": [
+      "agent-ownership"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "index build",
+    "actor": "indexion",
+    "summary": "Built index: 3 categories, 10 hub pages + vectors",
+    "details": {},
+    "affected_pages": []
+  },
+  {
+    "timestamp": "0",
+    "operation": "lint",
+    "actor": "indexion",
+    "summary": "9 issues found across 13 pages",
+    "details": {},
+    "affected_pages": [
+      "overview",
+      "getting-started",
+      "discord-integration",
+      "response-pipeline",
+      "intent-classification",
+      "memory-store",
+      "configuration",
+      "testing"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "ingest",
+    "actor": "indexion",
+    "summary": "0 pages need attention",
+    "details": {},
+    "affected_pages": []
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: testing",
+    "details": {},
+    "affected_pages": [
+      "testing"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: overview",
+    "details": {},
+    "affected_pages": [
+      "overview"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: getting-started",
+    "details": {},
+    "affected_pages": [
+      "getting-started"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: agent-ownership",
+    "details": {},
+    "affected_pages": [
+      "agent-ownership"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: discord-integration",
+    "details": {},
+    "affected_pages": [
+      "discord-integration"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: response-pipeline",
+    "details": {},
+    "affected_pages": [
+      "response-pipeline"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: intent-classification",
+    "details": {},
+    "affected_pages": [
+      "intent-classification"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: memory-store",
+    "details": {},
+    "affected_pages": [
+      "memory-store"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: configuration",
+    "details": {},
+    "affected_pages": [
+      "configuration"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: deployment",
+    "details": {},
+    "affected_pages": [
+      "deployment"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "lint",
+    "actor": "indexion",
+    "summary": "0 issues found across 13 pages",
+    "details": {},
+    "affected_pages": []
+  },
+  {
+    "timestamp": "0",
+    "operation": "index build",
+    "actor": "indexion",
+    "summary": "Built index: 3 categories, 10 hub pages",
+    "details": {},
+    "affected_pages": []
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: agent-ownership",
+    "details": {},
+    "affected_pages": [
+      "agent-ownership"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "ingest",
+    "actor": "indexion",
+    "summary": "3 pages need attention",
+    "details": {},
+    "affected_pages": [
+      "overview",
+      "architecture",
+      "agent-ownership"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: overview",
+    "details": {},
+    "affected_pages": [
+      "overview"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: architecture",
+    "details": {},
+    "affected_pages": [
+      "architecture"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: agent-ownership",
+    "details": {},
+    "affected_pages": [
+      "agent-ownership"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "ingest",
+    "actor": "indexion",
+    "summary": "0 pages need attention",
+    "details": {},
+    "affected_pages": []
+  },
+  {
+    "timestamp": "0",
+    "operation": "lint",
+    "actor": "indexion",
+    "summary": "0 issues found across 13 pages",
+    "details": {},
+    "affected_pages": []
+  },
+  {
+    "timestamp": "1783791833658",
+    "operation": "index build",
+    "actor": "indexion",
+    "summary": "Built index: 3 categories, 10 hub pages",
+    "details": {},
+    "affected_pages": []
+  }
+]

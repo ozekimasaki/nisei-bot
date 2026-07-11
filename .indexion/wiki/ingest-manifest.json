@@ -1,0 +1,131 @@
+{
+  "version": "1",
+  "page_states": {
+    "overview": {
+      "page_hash": "4c4cde2dc3e19738df97674d8c455c15",
+      "source_hashes": {
+        "README.md": "a47a7184fa984dd420e863a358f2845a",
+        "AGENTS.md": "29ade5554a02daf5b64484716b40ecd1",
+        "package.json": "9a2a57a1f9d4f866bf7463a0fa3e3649"
+      }
+    },
+    "getting-started": {
+      "page_hash": "87b338a57b6134a1a5ae4d550335e2bd",
+      "source_hashes": {
+        "README.md": "a47a7184fa984dd420e863a358f2845a",
+        "package.json": "9a2a57a1f9d4f866bf7463a0fa3e3649",
+        ".env.example": "e97455f1eef998485540c47fe2e73515",
+        "docker-compose.yml": "21aa7a4f62c8a9a848c0ceb43102785a"
+      }
+    },
+    "architecture": {
+      "page_hash": "3611484b03320103ecd88367ffb85442",
+      "source_hashes": {
+        "src/index.ts": "f72e23e96aedd517ef8d0a44806fc384",
+        "src/responder.ts": "88fe1ef60359d7776e05ffb36bb8be88",
+        "src/classifier.ts": "958734534e1d122733f49094d3ca0d80",
+        "src/db.ts": "296d1d021fb0d527e8ab8e0817c141e8",
+        "AGENTS.md": "29ade5554a02daf5b64484716b40ecd1"
+      }
+    },
+    "intent-classification": {
+      "page_hash": "8225f3f88d546ac2968005d99f91aa3e",
+      "source_hashes": {
+        "src/classifier.ts": "958734534e1d122733f49094d3ca0d80",
+        "tests/classifier.test.ts": "8c0f4a23df6434414aed20e768b0aa2f"
+      }
+    },
+    "response-pipeline": {
+      "page_hash": "06d94e0e0f600b764d8526302c69b0b3",
+      "source_hashes": {
+        "src/responder.ts": "88fe1ef60359d7776e05ffb36bb8be88",
+        "src/utterance.ts": "bc802acbea40f2b7c3017245668fa80f",
+        "src/personality.ts": "38049289ac1f85b17b716f5a8cde9b47",
+        "src/chatter-engine.ts": "aea37086dfc52ec2183960467c8233e8"
+      }
+    },
+    "memory-store": {
+      "page_hash": "29beaaae9e98776e817b9fe295eb2555",
+      "source_hashes": {
+        "src/db.ts": "296d1d021fb0d527e8ab8e0817c141e8",
+        "prisma/schema.prisma": "34c4d7029c066002791bb02313680562",
+        "src/normalize-memories.ts": "e1bf139bd36d9db89e1c21246fc76f61",
+        "scripts/normalize-memories.ts": "5f5ed5827fbff8890ec4945ddecf47b6"
+      }
+    },
+    "feature-engines": {
+      "page_hash": "052b24408775f182cd99efd992283a23",
+      "source_hashes": {
+        "src/fortune.ts": "2aef8ca5d1d66ffdf959353f6f118470",
+        "src/haiku.ts": "dafdc7b8162786061f96324b22494882",
+        "src/janken.ts": "f8d190f2660b87c75c1cd05b8a4c280d",
+        "src/dice.ts": "fab746805bac33b1814c81a5406a983d",
+        "src/quiz.ts": "dd202c77c245e0b6a96e11be17563f59",
+        "src/wikipedia.ts": "af00ac9dc5970eb1b0ffbfa214a3597a",
+        "src/seasonal.ts": "c76abff3ebb5fa471338c88d4f122577",
+        "src/ansi-rainbow.ts": "46f9b1ccf8044c33ed68323d5fb50707"
+      }
+    },
+    "discord-integration": {
+      "page_hash": "8f3f44c67e3b8550fd04c92478c4afaf",
+      "source_hashes": {
+        "src/index.ts": "f72e23e96aedd517ef8d0a44806fc384",
+        "src/commands.ts": "c0562cb01d18cba9acb235467479004f",
+        "src/deploy-commands.ts": "3e7d8e43b9b6462a2d87c3e7b58b1d6d",
+        "src/message-guard.ts": "2021d44439d74e67d6675306bfa5e44e",
+        "src/summary-page-store.ts": "7273e9b920437b74fcabbf3c0156c450",
+        "src/channel-summary.ts": "5ec0248aebe7532f083ff35e438dc18d",
+        "src/channel-activity.ts": "8003e1896489f8fb8f5f539ec54a49d3"
+      }
+    },
+    "personality-and-mood": {
+      "page_hash": "415f023e00f44dbebf2a14f0d922d38e",
+      "source_hashes": {
+        "src/mood.ts": "3f0d2fabbacd2e74a5d6ef0c0b72eb27",
+        "src/affection.ts": "a216998c259291ed2e6c50c95136193c",
+        "src/personality.ts": "38049289ac1f85b17b716f5a8cde9b47",
+        "src/default-brain.ts": "fbf3c1ff9fd03344ac9fa90e0d24fd29",
+        "src/chatter-engine.ts": "aea37086dfc52ec2183960467c8233e8",
+        "src/phrase.ts": "1440967b04d5594e49450f424661d672",
+        "src/word-dictionary.ts": "74d32fe48ff96d4ad323f8075b4b3310"
+      }
+    },
+    "configuration": {
+      "page_hash": "ed0ea47c6379f0390ada5fe0f5526c0f",
+      "source_hashes": {
+        "src/config.ts": "95e132494de722630fe9fe5e92ed9cc9",
+        "src/talk-level.ts": "0fd8c8e762ca5af013c003a4990fa3a0",
+        ".env.example": "e97455f1eef998485540c47fe2e73515"
+      }
+    },
+    "deployment": {
+      "page_hash": "931714920e01b7b3586a6a50588d8b3b",
+      "source_hashes": {
+        "ecosystem.config.cjs": "1ebe1aa5e5498117ba7fe54c2373f1ee",
+        "README.md": "a47a7184fa984dd420e863a358f2845a",
+        "docker-compose.yml": "21aa7a4f62c8a9a848c0ceb43102785a",
+        "scripts/windows-dev.ts": "245705c1846c0ca573209668dbcdfca3",
+        "scripts/windows-check.ts": "24e11431b9156956f343ec4819f86d35"
+      }
+    },
+    "testing": {
+      "page_hash": "9905ef7e9ac871fe837a7d6945ec915f",
+      "source_hashes": {
+        "tests/classifier.test.ts": "8c0f4a23df6434414aed20e768b0aa2f",
+        "package.json": "9a2a57a1f9d4f866bf7463a0fa3e3649"
+      }
+    },
+    "agent-ownership": {
+      "page_hash": "7aa2ad8c86d2678c9b64cff3175901da",
+      "source_hashes": {
+        "AGENTS.md": "29ade5554a02daf5b64484716b40ecd1",
+        "src/classifier.ts": "958734534e1d122733f49094d3ca0d80",
+        "src/responder.ts": "88fe1ef60359d7776e05ffb36bb8be88",
+        "src/db.ts": "296d1d021fb0d527e8ab8e0817c141e8",
+        "src/index.ts": "f72e23e96aedd517ef8d0a44806fc384",
+        "src/commands.ts": "c0562cb01d18cba9acb235467479004f",
+        "src/config.ts": "95e132494de722630fe9fe5e92ed9cc9"
+      }
+    }
+  }
+}

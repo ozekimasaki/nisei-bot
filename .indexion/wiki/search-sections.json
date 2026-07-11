@@ -1,0 +1,619 @@
+{
+  "provider": {
+    "kind": "tfidf",
+    "dim": 256
+  },
+  "next_vid": "133",
+  "entries": [
+    {
+      "section": {
+        "id": "feature-engines",
+        "title": "Feature Engines",
+        "content": "\n単機能ロジックは `src/*.ts` に分離し、`ResponsePlanner` から呼び出す。\n\n| エンジン | ファイル | 概要 |\n|----------|----------|------|\n| 占い | `fortune.ts` | 運勢・ラッキーカラー・アイテム |\n| 俳句 | `haiku.ts` | 雑なモーラ推定で五七五っぽく |\n| じゃんけん | `janken.ts` | 高勝率・連勝セッション |\n| ダイス | `dice.ts` | BCDice 連携 |\n| クイズ | `quiz.ts` | 覚えている知識からのクイズ |\n| Wikipedia | `wikipedia.ts` + `wiki-cooldown.ts` | 調べもの＋クールダウン |\n| 季節 | `seasonal.ts` | 季節ネタ |\n| 虹色 ANSI | `ansi-rainbow.ts` | Discord `ansi` フェンス用 |\n\n",
+        "page_id": "feature-engines",
+        "level": 1
+      },
+      "vid": "33"
+    },
+    {
+      "section": {
+        "id": "feature-engines#-2",
+        "title": "編集ルール",
+        "content": "\n- 純粋関数寄りのロジックはエンジン側に置く\n- 分類キーワードは `classifier.ts`、永続化は `db.ts`\n- 挙動を変えたら対応する `tests/*.test.ts` を更新\n\n",
+        "page_id": "feature-engines",
+        "level": 2
+      },
+      "vid": "34"
+    },
+    {
+      "section": {
+        "id": "feature-engines#see-also-3",
+        "title": "See Also",
+        "content": "\n- [Intent Classification](wiki://intent-classification)\n- [Response Pipeline](wiki://response-pipeline)\n- [Testing](wiki://testing)\n",
+        "page_id": "feature-engines",
+        "level": 2
+      },
+      "vid": "35"
+    },
+    {
+      "section": {
+        "id": "personality-and-mood",
+        "title": "Personality and Mood",
+        "content": "\nにせいの「性格」はルールと乱数で組み立てる。ユーザー向け文言は日本語・短く・自信満々・たまに間違える口調に合わせる。\n\n",
+        "page_id": "personality-and-mood",
+        "level": 1
+      },
+      "vid": "41"
+    },
+    {
+      "section": {
+        "id": "personality-and-mood#-2",
+        "title": "構成",
+        "content": "\n| モジュール | 役割 |\n|------------|------|\n| `mood.ts` | ギルド気分 |\n| `affection.ts` | ユーザーへのなつき |\n| `personality.ts` | mood / affection を踏まえた言い回し |\n| `default-brain.ts` | デフォルト語彙・リアクション |\n| `chatter-engine.ts` | 雑談エンジン |\n| `phrase.ts` + `word-dictionary.ts` | 分かち書き・語彙 |\n\n",
+        "page_id": "personality-and-mood",
+        "level": 2
+      },
+      "vid": "42"
+    },
+    {
+      "section": {
+        "id": "personality-and-mood#-3",
+        "title": "編集ヒント",
+        "content": "\n- 定型フレーズの追加は `default-brain.ts` か各エンジンの返答配列\n- 学習した知識の取り違えは `confusion.ts` / `Misunderstanding`\n- レート系（沈黙・絵文字・勘違い再利用）は `config.ts` の env\n\n",
+        "page_id": "personality-and-mood",
+        "level": 2
+      },
+      "vid": "43"
+    },
+    {
+      "section": {
+        "id": "personality-and-mood#see-also-4",
+        "title": "See Also",
+        "content": "\n- [Response Pipeline](wiki://response-pipeline)\n- [Memory Store](wiki://memory-store)\n- [Configuration](wiki://configuration)\n",
+        "page_id": "personality-and-mood",
+        "level": 2
+      },
+      "vid": "44"
+    },
+    {
+      "section": {
+        "id": "testing",
+        "title": "Testing",
+        "content": "\nフレームワークは Vitest（`npm test` → `vitest run`）。\n\n",
+        "page_id": "testing",
+        "level": 1
+      },
+      "vid": "62"
+    },
+    {
+      "section": {
+        "id": "testing#-2",
+        "title": "規約",
+        "content": "\n- 分類・純粋関数には必ずテストを追加（`classifier`, `confusion`, `haiku`, `janken`, `dice` など）\n- import は `../src/foo.js` 形式（ESM）\n- `ResponsePlanner` のような統合ロジックは、可能なら小さな純粋関数に切り出してからテストする\n\n",
+        "page_id": "testing",
+        "level": 2
+      },
+      "vid": "63"
+    },
+    {
+      "section": {
+        "id": "testing#-3",
+        "title": "配置",
+        "content": "\n- テスト: `tests/*.test.ts`\n- 対象: `src/*.ts`\n\n意図分類を変えたら `tests/classifier.test.ts` を必ず更新する。\n\n",
+        "page_id": "testing",
+        "level": 2
+      },
+      "vid": "64"
+    },
+    {
+      "section": {
+        "id": "testing#see-also-4",
+        "title": "See Also",
+        "content": "\n- [Intent Classification](wiki://intent-classification)\n- [Feature Engines](wiki://feature-engines)\n- [Agent Ownership](wiki://agent-ownership)\n- [Getting Started](wiki://getting-started)\n- [Overview](wiki://overview)\n\n",
+        "page_id": "testing",
+        "level": 2
+      },
+      "vid": "65"
+    },
+    {
+      "section": {
+        "id": "getting-started",
+        "title": "Getting Started",
+        "content": "\n",
+        "page_id": "getting-started",
+        "level": 1
+      },
+      "vid": "71"
+    },
+    {
+      "section": {
+        "id": "getting-started#-2",
+        "title": "前提",
+        "content": "\n- Node.js 20+\n- PostgreSQL（本番）または Podman + `docker-compose.yml`（Windows ローカル）\n- Discord bot token（Message Content Intent 必須）\n\n",
+        "page_id": "getting-started",
+        "level": 2
+      },
+      "vid": "72"
+    },
+    {
+      "section": {
+        "id": "getting-started#-3",
+        "title": "セットアップ",
+        "content": "\n```bash\nnpm ci\ncp .env.example .env\n",
+        "page_id": "getting-started",
+        "level": 2
+      },
+      "vid": "73"
+    },
+    {
+      "section": {
+        "id": "getting-started#env--4",
+        "title": ".env を編集",
+        "content": "npx prisma migrate deploy\nnpm run db:generate\nnpm run deploy:commands\nnpm run build\n```\n\n開発起動:\n\n```bash\nnpm run dev\n```\n\n",
+        "page_id": "getting-started",
+        "level": 2
+      },
+      "vid": "74"
+    },
+    {
+      "section": {
+        "id": "getting-started#windowspodman-5",
+        "title": "Windows（Podman）",
+        "content": "\n```powershell\nnpm run db:windows:up\nnpm run check:windows\nnpm run dev:windows\n```\n\n",
+        "page_id": "getting-started",
+        "level": 2
+      },
+      "vid": "75"
+    },
+    {
+      "section": {
+        "id": "getting-started#-npm-scripts-6",
+        "title": "よく使う npm scripts",
+        "content": "\n| Script | 用途 |\n|--------|------|\n| `npm test` | Vitest |\n| `npm run build` | prisma generate + tsc → `dist/` |\n| `npm run deploy:commands` | スラッシュコマンド登録 |\n| `npm run db:dev` | 開発用 migration |\n| `npm run db:normalize-memories` | 記憶正規化（dry-run） |\n\n",
+        "page_id": "getting-started",
+        "level": 2
+      },
+      "vid": "76"
+    },
+    {
+      "section": {
+        "id": "getting-started#see-also-7",
+        "title": "See Also",
+        "content": "\n- [Configuration](wiki://configuration)\n- [Deployment](wiki://deployment)\n- [Overview](wiki://overview)\n- [Testing](wiki://testing)\n\n",
+        "page_id": "getting-started",
+        "level": 2
+      },
+      "vid": "77"
+    },
+    {
+      "section": {
+        "id": "discord-integration",
+        "title": "Discord Integration",
+        "content": "\n",
+        "page_id": "discord-integration",
+        "level": 1
+      },
+      "vid": "84"
+    },
+    {
+      "section": {
+        "id": "discord-integration#srcindexts-2",
+        "title": "配線（`src/index.ts`）",
+        "content": "\n- Client 初期化、Intent: `Guilds` / `GuildMessages` / `MessageContent`\n- `MessageCreate` → guard → `ResponsePlanner`\n- `InteractionCreate` → `handleCommand`\n- 返信は `allowedMentions: { parse: [] }` を維持\n\nビジネスロジックをここに大量追加しない。配線とディスパッチに留める。\n\n",
+        "page_id": "discord-integration",
+        "level": 2
+      },
+      "vid": "85"
+    },
+    {
+      "section": {
+        "id": "discord-integration#srccommandsts-3",
+        "title": "スラッシュコマンド（`src/commands.ts`）",
+        "content": "\nプレフィックス `nisei_`。例: `nisei_help`, `nisei_uranai`, `nisei_haiku`, `nisei_stats`, `nisei_poke`, `nisei_treasure`, `nisei_forget`, `nisei_wiki`, `nisei_kanchigai`, `nisei_album`, `nisei_quiz`, `nisei_janken`, `nisei_shizuka`, `nisei_hatsugen`, `nisei_summary`。\n\n追加・変更後は必ず:\n\n```bash\nnpm run deploy:commands\n```\n\n定義は `commands.ts`、処理は `index.ts` の `handleCommand`、登録スクリプトは `deploy-commands.ts`。\n\n",
+        "page_id": "discord-integration",
+        "level": 2
+      },
+      "vid": "86"
+    },
+    {
+      "section": {
+        "id": "discord-integration#-4",
+        "title": "周辺",
+        "content": "\n| ファイル | 役割 |\n|----------|------|\n| `message-guard.ts` | 対象外・重複メッセージの除外 |\n| `channel-activity.ts` | チャンネル活動度 |\n| `channel-summary.ts` | 要約（Gemini 利用の場合あり） |\n| `summary-page-store.ts` | 要約ページの Discord 側保持 |\n| `quiet-channel.ts` | 静音チャンネル判定 |\n\n",
+        "page_id": "discord-integration",
+        "level": 2
+      },
+      "vid": "87"
+    },
+    {
+      "section": {
+        "id": "discord-integration#see-also-5",
+        "title": "See Also",
+        "content": "\n- [Architecture](wiki://architecture)\n- [Configuration](wiki://configuration)\n- [Deployment](wiki://deployment)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
+        "page_id": "discord-integration",
+        "level": 2
+      },
+      "vid": "88"
+    },
+    {
+      "section": {
+        "id": "response-pipeline",
+        "title": "Response Pipeline",
+        "content": "\n`ResponsePlanner`（`src/responder.ts`）がメッセージ応答の中枢。`IncomingMessage` を受け取り `ResponseResult`（本文・フォローアップ等）を返す。\n\n",
+        "page_id": "response-pipeline",
+        "level": 1
+      },
+      "vid": "89"
+    },
+    {
+      "section": {
+        "id": "response-pipeline#-2",
+        "title": "責務",
+        "content": "\n- `classifyMessage` の結果に応じてエンジンを呼び出す\n- `MemoryStore` 経由で学習・照会・勘違いを扱う\n- talk level / cooldown / silence / emoji などのレートを適用\n- 口調は短く自信満々、たまに間違える（`utterance` / `personality` / `confusion`）\n\n",
+        "page_id": "response-pipeline",
+        "level": 2
+      },
+      "vid": "90"
+    },
+    {
+      "section": {
+        "id": "response-pipeline#-3",
+        "title": "関連モジュール",
+        "content": "\n| モジュール | 役割 |\n|------------|------|\n| `utterance.ts` | 定型っぽい短い発話 |\n| `personality.ts` | なつき・気分を踏まえた言い回し |\n| `chatter-engine.ts` | 雑談・独り言寄りの生成 |\n| `confusion.ts` | 知識の取り違え |\n| `unsolicited.ts` | 呼ばれていないときの介入判定 |\n| `bot-context.ts` | bot 側コンテキスト組み立て |\n\n",
+        "page_id": "response-pipeline",
+        "level": 2
+      },
+      "vid": "91"
+    },
+    {
+      "section": {
+        "id": "response-pipeline#-4",
+        "title": "編集ルール",
+        "content": "\n- 新しい会話パターンは可能なら小さな純粋関数に切り出してから `ResponsePlanner` に配線する\n- 生の `prisma` 呼び出しをここに散らさない（`MemoryStore` 経由）\n- `src/index.ts` にビジネスロジックを戻さない\n\n",
+        "page_id": "response-pipeline",
+        "level": 2
+      },
+      "vid": "92"
+    },
+    {
+      "section": {
+        "id": "response-pipeline#see-also-5",
+        "title": "See Also",
+        "content": "\n- [Intent Classification](wiki://intent-classification)\n- [Memory Store](wiki://memory-store)\n- [Personality and Mood](wiki://personality-and-mood)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
+        "page_id": "response-pipeline",
+        "level": 2
+      },
+      "vid": "93"
+    },
+    {
+      "section": {
+        "id": "intent-classification",
+        "title": "Intent Classification",
+        "content": "\n`src/classifier.ts` がユーザー発話を `MessageIntent`（discriminated union）に分類する。\n\n",
+        "page_id": "intent-classification",
+        "level": 1
+      },
+      "vid": "94"
+    },
+    {
+      "section": {
+        "id": "intent-classification#-intent-2",
+        "title": "主な intent",
+        "content": "\n| type | 概要 |\n|------|------|\n| `teach` / `denyTeach` | 知識の学習・否定 |\n| `question` | 質問（覚えた知識への問い合わせ） |\n| `wikiSearch` | Wikipedia 検索要求 |\n| `greeting` | 朝・夜・帰宅などの挨拶 |\n| `fortune` / `haiku` / `dice` / `quiz` | 遊び機能 |\n| `jankenStart` / `jankenHand` / `jankenRematch` | じゃんけん |\n| `poke` / `treasure` / `kanchigai` / `album` | なつき・たからもの・勘違い |\n| `quietOn` / `quietOff` | チャンネル静音 |\n| `chatter` | 呼びかけ以外の雑談候補 |\n| `correction` / `doubt` / `lieCall` | 訂正・疑い・嘘つき指摘 |\n\n",
+        "page_id": "intent-classification",
+        "level": 2
+      },
+      "vid": "95"
+    },
+    {
+      "section": {
+        "id": "intent-classification#-3",
+        "title": "編集ルール",
+        "content": "\n- 正規表現・キーワードの追加はここが正本\n- 新しい intent を追加したら `tests/classifier.test.ts` を更新する\n- `switch` で扱う側（`responder.ts`）は `default` に `never` チェックを入れる\n\n",
+        "page_id": "intent-classification",
+        "level": 2
+      },
+      "vid": "96"
+    },
+    {
+      "section": {
+        "id": "intent-classification#-4",
+        "title": "呼び出し判定",
+        "content": "\n`isCalled` / `ClassifierOptions.botNames` / bot メンションで「呼ばれたか」を判定する。ダイス式は `extractDiceFormula` が補助する。\n\n",
+        "page_id": "intent-classification",
+        "level": 2
+      },
+      "vid": "97"
+    },
+    {
+      "section": {
+        "id": "intent-classification#see-also-5",
+        "title": "See Also",
+        "content": "\n- [Response Pipeline](wiki://response-pipeline)\n- [Feature Engines](wiki://feature-engines)\n- [Testing](wiki://testing)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
+        "page_id": "intent-classification",
+        "level": 2
+      },
+      "vid": "98"
+    },
+    {
+      "section": {
+        "id": "memory-store",
+        "title": "Memory Store",
+        "content": "\n`MemoryStore`（`src/db.ts`）が Prisma モデルの唯一のアプリ側ラッパ。`responder.ts` から生の Prisma を直接叩かない。\n\n",
+        "page_id": "memory-store",
+        "level": 1
+      },
+      "vid": "99"
+    },
+    {
+      "section": {
+        "id": "memory-store#-2",
+        "title": "主要モデル",
+        "content": "\n| Model | 用途 |\n|-------|------|\n| `GuildMemory` | サーバーごとの主語→述語知識 |\n| `MessageSnippet` | 発話スニペット |\n| `GuildState` | mood / talkCount / talkLevel 等 |\n| `KnownUser` | なつき（affection） |\n| `Misunderstanding` | 勘違い知識 |\n| `TreasureWord` | たからもの単語 |\n| `JankenSession` | じゃんけん連勝管理 |\n| `QuietChannel` | 静音チャンネル |\n| `HandledMessage` | 二重処理防止 |\n| `LearnedEmoji` / `PokeState` | 絵文字学習・つつき |\n\n",
+        "page_id": "memory-store",
+        "level": 2
+      },
+      "vid": "100"
+    },
+    {
+      "section": {
+        "id": "memory-store#-3",
+        "title": "スキーマ変更手順",
+        "content": "\n1. `prisma/schema.prisma` を更新\n2. `prisma/migrations/` に migration 追加（`npm run db:dev`）\n3. `npm run db:generate`\n4. `MemoryStore` に API を追加\n5. 本番: `npx prisma migrate deploy`\n\n",
+        "page_id": "memory-store",
+        "level": 2
+      },
+      "vid": "101"
+    },
+    {
+      "section": {
+        "id": "memory-store#-4",
+        "title": "正規化",
+        "content": "\n`src/normalize-memories.ts` + `scripts/normalize-memories.ts` で記憶テーブルの正規化プランを dry-run / apply できる。本番経路には組み込まない。\n\n",
+        "page_id": "memory-store",
+        "level": 2
+      },
+      "vid": "102"
+    },
+    {
+      "section": {
+        "id": "memory-store#see-also-5",
+        "title": "See Also",
+        "content": "\n- [Architecture](wiki://architecture)\n- [Response Pipeline](wiki://response-pipeline)\n- [Configuration](wiki://configuration)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
+        "page_id": "memory-store",
+        "level": 2
+      },
+      "vid": "103"
+    },
+    {
+      "section": {
+        "id": "configuration",
+        "title": "Configuration",
+        "content": "\n環境変数の読み込みとデフォルトは `src/config.ts`。新しい env は `.env.example` も同時更新する。秘密情報は `.env` のみ（コミットしない）。\n\n",
+        "page_id": "configuration",
+        "level": 1
+      },
+      "vid": "104"
+    },
+    {
+      "section": {
+        "id": "configuration#-2",
+        "title": "代表的な設定",
+        "content": "\n| 変数 | 意味 |\n|------|------|\n| `DISCORD_TOKEN` / `CLIENT_ID` / `GUILD_ID` | Discord 接続 |\n| `DATABASE_URL` | PostgreSQL |\n| `BOT_NAMES` / `BOT_DISPLAY_NAME` | 呼び名 |\n| `TALK_LEVEL` | 話しやすさ（1–10 系）。`TALKATIVENESS` は非推奨フォールバック |\n| `CONFUSION_RATE` 等 | 勘違い・沈黙・絵文字などの確率 |\n| `JANKEN_WIN_RATE` | じゃんけん勝率 |\n| `GEMINI_*` | チャンネル要約など任意の Gemini 連携 |\n\n数値レートは `numberEnv` パターンに従う。ギルド単位の talk level 上書きは `GuildState.talkLevel` + `talk-level.ts`。\n\n",
+        "page_id": "configuration",
+        "level": 2
+      },
+      "vid": "105"
+    },
+    {
+      "section": {
+        "id": "configuration#see-also-3",
+        "title": "See Also",
+        "content": "\n- [Getting Started](wiki://getting-started)\n- [Deployment](wiki://deployment)\n- [Discord Integration](wiki://discord-integration)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
+        "page_id": "configuration",
+        "level": 2
+      },
+      "vid": "106"
+    },
+    {
+      "section": {
+        "id": "deployment",
+        "title": "Deployment",
+        "content": "\n",
+        "page_id": "deployment",
+        "level": 1
+      },
+      "vid": "107"
+    },
+    {
+      "section": {
+        "id": "deployment#ubuntu--pm2-2",
+        "title": "本番（Ubuntu / pm2）",
+        "content": "\n```bash\ngit pull\nnpm ci\nnpm run db:generate\nnpx prisma migrate deploy\nnpm run build\npm2 restart nisei-bot\n```\n\n- アプリ名: `nisei-bot`\n- `instances: 1` / `exec_mode: \"fork\"`（cluster 不可 — Gateway 二重接続防止）\n- `.env` 変更後: `pm2 restart nisei-bot --update-env`\n- `Script not found: dist/index.js` → 先に `npm run build`\n\n",
+        "page_id": "deployment",
+        "level": 2
+      },
+      "vid": "108"
+    },
+    {
+      "section": {
+        "id": "deployment#windows--3",
+        "title": "Windows ローカル",
+        "content": "\nPodman で DB、pm2 なしで `npm run dev:windows`。補助スクリプトは `scripts/`（本番経路に組み込まない）。\n\n",
+        "page_id": "deployment",
+        "level": 2
+      },
+      "vid": "109"
+    },
+    {
+      "section": {
+        "id": "deployment#see-also-4",
+        "title": "See Also",
+        "content": "\n- [Getting Started](wiki://getting-started)\n- [Configuration](wiki://configuration)\n- [Overview](wiki://overview)\n\n",
+        "page_id": "deployment",
+        "level": 2
+      },
+      "vid": "110"
+    },
+    {
+      "section": {
+        "id": "overview",
+        "title": "Overview",
+        "content": "\nchisei-oss は Discord bot「にせい」のリポジトリです。生成AIを主エンジンにせず、ルールベースと乱数で「幼稚園児くらいのアホの子」っぽく振る舞います。\n\n",
+        "page_id": "overview",
+        "level": 1
+      },
+      "vid": "117"
+    },
+    {
+      "section": {
+        "id": "overview#-2",
+        "title": "目的",
+        "content": "\n- サーバーごとの知識学習（`○○は××だよ`）\n- たまに間違える・自信満々な返答\n- じゃんけん・占い・俳句・ダイス・クイズなどの遊び機能\n- なつき・勘違い・たからものなど人格的な副作用\n\n",
+        "page_id": "overview",
+        "level": 2
+      },
+      "vid": "118"
+    },
+    {
+      "section": {
+        "id": "overview#-3",
+        "title": "技術スタック",
+        "content": "\n| 項目 | 内容 |\n|------|------|\n| Runtime | Node.js 20+、ESM (`\"type\": \"module\"`) |\n| Discord | discord.js 14 |\n| DB | PostgreSQL + Prisma 6 |\n| Test | Vitest |\n| 本番 | pm2 (`nisei-bot`、fork・単一インスタンス) |\n\n",
+        "page_id": "overview",
+        "level": 2
+      },
+      "vid": "119"
+    },
+    {
+      "section": {
+        "id": "overview#-4",
+        "title": "エージェント向け入口",
+        "content": "\n- 人間向けセットアップ: [README.md](../../README.md)\n- エージェント向け規約: [AGENTS.md](../../AGENTS.md)\n- この wiki: `.indexion/wiki/`\n\n",
+        "page_id": "overview",
+        "level": 2
+      },
+      "vid": "120"
+    },
+    {
+      "section": {
+        "id": "overview#see-also-5",
+        "title": "See Also",
+        "content": "\n- [Getting Started](wiki://getting-started)\n- [Architecture](wiki://architecture)\n- [Agent Ownership](wiki://agent-ownership)\n- [Deployment](wiki://deployment)\n- [Testing](wiki://testing)\n\n",
+        "page_id": "overview",
+        "level": 2
+      },
+      "vid": "121"
+    },
+    {
+      "section": {
+        "id": "architecture",
+        "title": "Architecture",
+        "content": "\n",
+        "page_id": "architecture",
+        "level": 1
+      },
+      "vid": "122"
+    },
+    {
+      "section": {
+        "id": "architecture#-2",
+        "title": "メッセージ処理の流れ",
+        "content": "\n```\nDiscord Gateway\n  ↓\nsrc/index.ts … Client、MessageCreate / InteractionCreate\n  ↓\nsrc/message-guard.ts … 重複処理・対象フィルタ\n  ↓\nsrc/responder.ts … ResponsePlanner（応答中枢）\n  ↓\nsrc/classifier.ts … MessageIntent 分類\n  ↓\n機能エンジン + MemoryStore (src/db.ts / Prisma)\n```\n\n",
+        "page_id": "architecture",
+        "level": 2
+      },
+      "vid": "123"
+    },
+    {
+      "section": {
+        "id": "architecture#-3",
+        "title": "レイヤ責務",
+        "content": "\n| レイヤ | 役割 | 代表ファイル |\n|--------|------|----------------|\n| Gateway 配線 | Discord イベント接続、コマンドディスパッチ | `src/index.ts` |\n| 応答計画 | intent に応じた返答組み立て | `src/responder.ts` |\n| 意図分類 | 正規表現・キーワードで MessageIntent | `src/classifier.ts` |\n| 永続化 | Prisma ラッパ | `src/db.ts` |\n| 機能エンジン | 占い・俳句・じゃんけん等の純粋寄りのロジック | `src/fortune.ts` 等 |\n| 人格・気分 | mood / affection / chatter | `src/mood.ts` 等 |\n\n",
+        "page_id": "architecture",
+        "level": 2
+      },
+      "vid": "124"
+    },
+    {
+      "section": {
+        "id": "architecture#-4",
+        "title": "拡張ポイント",
+        "content": "\n1. 新しい会話パターン → `classifier.ts` に intent 追加 → `responder.ts` で処理\n2. 新しいスラッシュコマンド → `commands.ts` + `index.ts` の `handleCommand` + `deploy:commands`\n3. 新しい永続データ → `prisma/schema.prisma` + migration + `MemoryStore`\n\n",
+        "page_id": "architecture",
+        "level": 2
+      },
+      "vid": "125"
+    },
+    {
+      "section": {
+        "id": "architecture#see-also-5",
+        "title": "See Also",
+        "content": "\n- [Intent Classification](wiki://intent-classification)\n- [Response Pipeline](wiki://response-pipeline)\n- [Memory Store](wiki://memory-store)\n- [Discord Integration](wiki://discord-integration)\n",
+        "page_id": "architecture",
+        "level": 2
+      },
+      "vid": "126"
+    },
+    {
+      "section": {
+        "id": "agent-ownership",
+        "title": "Agent Ownership",
+        "content": "\nコーディングエージェントが「どこを編集するか」の正本。詳細規約と indexion の使い方は [AGENTS.md](../../AGENTS.md)（indexion ナレッジベース節）を参照。\n\n",
+        "page_id": "agent-ownership",
+        "level": 1
+      },
+      "vid": "127"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#-2",
+        "title": "オーナーシップ表",
+        "content": "\n| 変更したいこと | 主な編集先 |\n|---|---|\n| 意図判定（正規表現・キーワード） | `src/classifier.ts` |\n| 返答ロジック・新会話パターン | `src/responder.ts` |\n| DB 読み書き・スキーマ | `src/db.ts` + `prisma/schema.prisma` |\n| スラッシュコマンド定義 | `src/commands.ts` |\n| スラッシュコマンド処理 | `src/index.ts` の `handleCommand` |\n| 環境変数・デフォルト | `src/config.ts`、`.env.example` |\n| 占い・俳句・じゃんけん等 | 各 `src/*.ts` エンジン |\n| デフォルト語彙・リアクション | `src/default-brain.ts` |\n| 静音・活動・要約 | `quiet-channel.ts` / `channel-activity.ts` / `channel-summary.ts` |\n\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "128"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#-3",
+        "title": "避けること",
+        "content": "\n- `src/index.ts` にビジネスロジックを大量追加しない\n- `scripts/` を本番経路に組み込まない\n- pm2 cluster 化など Gateway 二重接続を招く変更\n\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "129"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#indexion--4",
+        "title": "indexion の使い方",
+        "content": "\n```powershell\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "130"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#path--userprofileindexionbin--5",
+        "title": "PATH に %USERPROFILE%\\.indexion\\bin を追加済み想定",
+        "content": "indexion wiki index build --wiki-dir=.indexion/wiki\nindexion search \"じゃんけん\" .indexion/wiki/\nindexion agent orient --task \"add quiet-channel tests\" --output .indexion/cache/agent/orient.md .\nindexion plan reconcile --doc='.indexion/wiki/*.md' --doc-spec=markdown --format=md .\n```\n\n編集前に [Architecture](wiki://architecture) とこのページを読む。実装後は `wiki pages ingest` でソース変更を検知し、必要ならページを `wiki pages update` する。\n\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "131"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#see-also-6",
+        "title": "See Also",
+        "content": "\n- [Architecture](wiki://architecture)\n- [Overview](wiki://overview)\n- [Testing](wiki://testing)\n- [Discord Integration](wiki://discord-integration)\n- [Response Pipeline](wiki://response-pipeline)\n- [Intent Classification](wiki://intent-classification)\n- [Memory Store](wiki://memory-store)\n- [Configuration](wiki://configuration)\n\n\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "132"
+    }
+  ]
+}

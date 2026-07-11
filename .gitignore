@@ -6,3 +6,6 @@ dist/
 coverage/
 *.log
 prisma/dev.db
+
+# indexion: keep wiki, ignore regenerated caches
+.indexion/cache/

@@ -1,0 +1,196 @@
+{
+  "title": "Wiki",
+  "pages": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "file": "overview.md",
+      "sources": [
+        "README.md",
+        "AGENTS.md",
+        "package.json"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "file": "getting-started.md",
+      "sources": [
+        "README.md",
+        "package.json",
+        ".env.example",
+        "docker-compose.yml"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "architecture",
+      "title": "Architecture",
+      "file": "architecture.md",
+      "sources": [
+        "src/index.ts",
+        "src/responder.ts",
+        "src/classifier.ts",
+        "src/db.ts",
+        "AGENTS.md"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "intent-classification",
+      "title": "Intent Classification",
+      "file": "intent-classification.md",
+      "sources": [
+        "src/classifier.ts",
+        "tests/classifier.test.ts"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "response-pipeline",
+      "title": "Response Pipeline",
+      "file": "response-pipeline.md",
+      "sources": [
+        "src/responder.ts",
+        "src/utterance.ts",
+        "src/personality.ts",
+        "src/chatter-engine.ts"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "memory-store",
+      "title": "Memory Store",
+      "file": "memory-store.md",
+      "sources": [
+        "src/db.ts",
+        "prisma/schema.prisma",
+        "src/normalize-memories.ts",
+        "scripts/normalize-memories.ts"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "feature-engines",
+      "title": "Feature Engines",
+      "file": "feature-engines.md",
+      "sources": [
+        "src/fortune.ts",
+        "src/haiku.ts",
+        "src/janken.ts",
+        "src/dice.ts",
+        "src/quiz.ts",
+        "src/wikipedia.ts",
+        "src/seasonal.ts",
+        "src/ansi-rainbow.ts"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "discord-integration",
+      "title": "Discord Integration",
+      "file": "discord-integration.md",
+      "sources": [
+        "src/index.ts",
+        "src/commands.ts",
+        "src/deploy-commands.ts",
+        "src/message-guard.ts",
+        "src/summary-page-store.ts",
+        "src/channel-summary.ts",
+        "src/channel-activity.ts"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "personality-and-mood",
+      "title": "Personality and Mood",
+      "file": "personality-and-mood.md",
+      "sources": [
+        "src/mood.ts",
+        "src/affection.ts",
+        "src/personality.ts",
+        "src/default-brain.ts",
+        "src/chatter-engine.ts",
+        "src/phrase.ts",
+        "src/word-dictionary.ts"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "configuration",
+      "title": "Configuration",
+      "file": "configuration.md",
+      "sources": [
+        "src/config.ts",
+        "src/talk-level.ts",
+        ".env.example"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "deployment",
+      "title": "Deployment",
+      "file": "deployment.md",
+      "sources": [
+        "ecosystem.config.cjs",
+        "README.md",
+        "docker-compose.yml",
+        "scripts/windows-dev.ts",
+        "scripts/windows-check.ts"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "testing",
+      "title": "Testing",
+      "file": "testing.md",
+      "sources": [
+        "tests/classifier.test.ts",
+        "package.json"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    },
+    {
+      "id": "agent-ownership",
+      "title": "Agent Ownership",
+      "file": "agent-ownership.md",
+      "sources": [
+        "AGENTS.md",
+        "src/classifier.ts",
+        "src/responder.ts",
+        "src/db.ts",
+        "src/index.ts",
+        "src/commands.ts",
+        "src/config.ts"
+      ],
+      "children": [],
+      "provenance": "synthesized",
+      "last_actor": "agent:cursor"
+    }
+  ]
+}
