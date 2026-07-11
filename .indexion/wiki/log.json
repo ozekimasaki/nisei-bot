@@ -347,11 +347,21 @@
     "affected_pages": []
   },
   {
-    "timestamp": "1783791833658",
+    "timestamp": "0",
     "operation": "index build",
     "actor": "indexion",
     "summary": "Built index: 3 categories, 10 hub pages",
     "details": {},
     "affected_pages": []
+  },
+  {
+    "timestamp": "1783793370437",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: discord-integration",
+    "details": {},
+    "affected_pages": [
+      "discord-integration"
+    ]
   }
 ]

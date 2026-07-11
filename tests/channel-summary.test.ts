@@ -14,6 +14,7 @@ import {
   countImageLabels,
   EMBED_DESCRIPTION_LIMIT,
   EMBED_TITLE_LIMIT,
+  ensureGuildMembersForAuthors,
   formatTranscript,
   imagesForTranscript,
   isValidPagedSummary,
@@ -28,6 +29,7 @@ import {
   paginateSummaryFallback,
   parsePagedSummary,
   resolveImageMime,
+  resolveMessageAuthorName,
   selectImagesForTranscript,
   SOFT_OUTPUT_LIMIT,
   splitChunkByImageLimit,
@@ -41,6 +43,93 @@ import {
   getSummaryPageSession,
   saveSummaryPageSession
 } from "../src/summary-page-store.js";
+
+describe("resolveMessageAuthorName", () => {
+  it("prefers guild member display name on the message", () => {
+    const message = {
+      member: { displayName: "鯖ニック" },
+      guild: null,
+      author: { id: "1", displayName: "グローバル", username: "user_one" }
+    };
+    expect(resolveMessageAuthorName(message as never)).toBe("鯖ニック");
+  });
+
+  it("uses guild member cache when message.member is missing", () => {
+    const message = {
+      member: null,
+      guild: {
+        members: {
+          cache: {
+            get: (id: string) => (id === "1" ? { displayName: "キャッシュ鯖名" } : undefined)
+          }
+        }
+      },
+      author: { id: "1", displayName: "グローバル", username: "user_one" }
+    };
+    expect(resolveMessageAuthorName(message as never)).toBe("キャッシュ鯖名");
+  });
+
+  it("falls back to author displayName then username", () => {
+    const withGlobal = {
+      member: null,
+      guild: { members: { cache: { get: () => undefined } } },
+      author: { id: "1", displayName: "グローバル", username: "user_one" }
+    };
+    expect(resolveMessageAuthorName(withGlobal as never)).toBe("グローバル");
+
+    const withUsername = {
+      member: null,
+      guild: null,
+      author: { id: "1", displayName: undefined, username: "user_one" }
+    };
+    expect(resolveMessageAuthorName(withUsername as never)).toBe("user_one");
+  });
+});
+
+describe("ensureGuildMembersForAuthors", () => {
+  it("fetches only missing user ids", async () => {
+    const fetch = vi.fn(async () => new Map());
+    const guild = {
+      members: {
+        cache: {
+          has: (id: string) => id === "cached"
+        },
+        fetch
+      }
+    };
+
+    await ensureGuildMembersForAuthors(guild as never, ["cached", "a", "b", "a"]);
+    expect(fetch).toHaveBeenCalledWith({ user: ["a", "b"] });
+  });
+
+  it("skips fetch when all members are cached", async () => {
+    const fetch = vi.fn();
+    const guild = {
+      members: {
+        cache: { has: () => true },
+        fetch
+      }
+    };
+
+    await ensureGuildMembersForAuthors(guild as never, ["1", "2"]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("swallows fetch errors", async () => {
+    const guild = {
+      members: {
+        cache: { has: () => false },
+        fetch: vi.fn(async () => {
+          throw new Error("boom");
+        })
+      }
+    };
+
+    await expect(
+      ensureGuildMembersForAuthors(guild as never, ["1"])
+    ).resolves.toBeUndefined();
+  });
+});
 
 describe("formatTranscript", () => {
   it("formats author and content lines", () => {

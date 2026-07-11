@@ -4,6 +4,7 @@ import {
   EmbedBuilder,
   PermissionFlagsBits,
   type Attachment,
+  type Guild,
   type GuildBasedChannel,
   type Message,
   type TextChannel
@@ -162,6 +163,29 @@ export function formatTranscript(messages: TranscriptMessage[]): string[] {
   return lines;
 }
 
+/** Prefer guild nickname / server display name over global name or username. */
+export function resolveMessageAuthorName(message: Message): string {
+  const member =
+    message.member ?? message.guild?.members.cache.get(message.author.id) ?? null;
+  if (member) return member.displayName;
+  return message.author.displayName ?? message.author.username;
+}
+
+/** REST-fetch missing guild members by ID (no GuildMembers intent required). */
+export async function ensureGuildMembersForAuthors(
+  guild: Guild,
+  userIds: string[]
+): Promise<void> {
+  const missing = [...new Set(userIds)].filter((id) => !guild.members.cache.has(id));
+  if (missing.length === 0) return;
+
+  try {
+    await guild.members.fetch({ user: missing });
+  } catch (error) {
+    console.error("Failed to fetch guild members for summary author names", error);
+  }
+}
+
 export function messageToTranscript(message: Message): TranscriptMessage | null {
   if (message.system) return null;
 
@@ -195,7 +219,7 @@ export function messageToTranscript(message: Message): TranscriptMessage | null 
   if (parts.length === 0 && images.length === 0) return null;
 
   return {
-    authorName: message.member?.displayName ?? message.author.displayName ?? message.author.username,
+    authorName: resolveMessageAuthorName(message),
     content: parts.join(" "),
     createdTimestamp: message.createdTimestamp,
     bot: message.author.bot,
@@ -292,12 +316,12 @@ export async function fetchMessagesSince(
   sinceMs: number,
   maxMessages: number = MAX_FETCH_MESSAGES
 ): Promise<{ messages: TranscriptMessage[]; truncatedInput: boolean }> {
-  const collected: TranscriptMessage[] = [];
+  const raw: Message[] = [];
   let before: string | undefined;
   let truncatedInput = false;
   const limited = Number.isFinite(maxMessages);
 
-  while (!limited || collected.length < maxMessages) {
+  while (!limited || raw.length < maxMessages) {
     const batch = await channel.messages.fetch({
       limit: 100,
       ...(before ? { before } : {})
@@ -314,18 +338,31 @@ export async function fetchMessagesSince(
         hitOlder = true;
         break;
       }
-      const entry = messageToTranscript(message);
-      if (entry) collected.push(entry);
-      if (limited && collected.length >= maxMessages) {
-        truncatedInput = true;
-        break;
+      // Count only messages that would become transcript lines (same as before).
+      if (messageToTranscript(message)) {
+        raw.push(message);
+        if (limited && raw.length >= maxMessages) {
+          truncatedInput = true;
+          break;
+        }
       }
     }
 
     const oldest = sorted[sorted.length - 1];
     if (!oldest || hitOlder || batch.size < 100) break;
-    if (limited && collected.length >= maxMessages) break;
+    if (limited && raw.length >= maxMessages) break;
     before = oldest.id;
+  }
+
+  await ensureGuildMembersForAuthors(
+    channel.guild,
+    raw.map((message) => message.author.id)
+  );
+
+  const collected: TranscriptMessage[] = [];
+  for (const message of raw) {
+    const entry = messageToTranscript(message);
+    if (entry) collected.push(entry);
   }
 
   collected.sort((a, b) => a.createdTimestamp - b.createdTimestamp);

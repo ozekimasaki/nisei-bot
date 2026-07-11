@@ -27,7 +27,7 @@ npm run deploy:commands
 |----------|------|
 | `message-guard.ts` | 対象外・重複メッセージの除外 |
 | `channel-activity.ts` | チャンネル活動度 |
-| `channel-summary.ts` | 要約（Gemini 利用の場合あり） |
+| `channel-summary.ts` | 要約（Gemini 利用の場合あり）。ログ作者名は `GuildMember.displayName`（必要時 REST で members fetch） |
 | `summary-page-store.ts` | 要約ページの Discord 側保持 |
 | `quiet-channel.ts` | 静音チャンネル判定 |
 

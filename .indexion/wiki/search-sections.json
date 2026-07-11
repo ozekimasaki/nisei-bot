@@ -3,7 +3,7 @@
     "kind": "tfidf",
     "dim": 256
   },
-  "next_vid": "133",
+  "next_vid": "138",
   "entries": [
     {
       "section": {
@@ -184,56 +184,6 @@
         "level": 2
       },
       "vid": "77"
-    },
-    {
-      "section": {
-        "id": "discord-integration",
-        "title": "Discord Integration",
-        "content": "\n",
-        "page_id": "discord-integration",
-        "level": 1
-      },
-      "vid": "84"
-    },
-    {
-      "section": {
-        "id": "discord-integration#srcindexts-2",
-        "title": "配線（`src/index.ts`）",
-        "content": "\n- Client 初期化、Intent: `Guilds` / `GuildMessages` / `MessageContent`\n- `MessageCreate` → guard → `ResponsePlanner`\n- `InteractionCreate` → `handleCommand`\n- 返信は `allowedMentions: { parse: [] }` を維持\n\nビジネスロジックをここに大量追加しない。配線とディスパッチに留める。\n\n",
-        "page_id": "discord-integration",
-        "level": 2
-      },
-      "vid": "85"
-    },
-    {
-      "section": {
-        "id": "discord-integration#srccommandsts-3",
-        "title": "スラッシュコマンド（`src/commands.ts`）",
-        "content": "\nプレフィックス `nisei_`。例: `nisei_help`, `nisei_uranai`, `nisei_haiku`, `nisei_stats`, `nisei_poke`, `nisei_treasure`, `nisei_forget`, `nisei_wiki`, `nisei_kanchigai`, `nisei_album`, `nisei_quiz`, `nisei_janken`, `nisei_shizuka`, `nisei_hatsugen`, `nisei_summary`。\n\n追加・変更後は必ず:\n\n```bash\nnpm run deploy:commands\n```\n\n定義は `commands.ts`、処理は `index.ts` の `handleCommand`、登録スクリプトは `deploy-commands.ts`。\n\n",
-        "page_id": "discord-integration",
-        "level": 2
-      },
-      "vid": "86"
-    },
-    {
-      "section": {
-        "id": "discord-integration#-4",
-        "title": "周辺",
-        "content": "\n| ファイル | 役割 |\n|----------|------|\n| `message-guard.ts` | 対象外・重複メッセージの除外 |\n| `channel-activity.ts` | チャンネル活動度 |\n| `channel-summary.ts` | 要約（Gemini 利用の場合あり） |\n| `summary-page-store.ts` | 要約ページの Discord 側保持 |\n| `quiet-channel.ts` | 静音チャンネル判定 |\n\n",
-        "page_id": "discord-integration",
-        "level": 2
-      },
-      "vid": "87"
-    },
-    {
-      "section": {
-        "id": "discord-integration#see-also-5",
-        "title": "See Also",
-        "content": "\n- [Architecture](wiki://architecture)\n- [Configuration](wiki://configuration)\n- [Deployment](wiki://deployment)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
-        "page_id": "discord-integration",
-        "level": 2
-      },
-      "vid": "88"
     },
     {
       "section": {
@@ -614,6 +564,56 @@
         "level": 2
       },
       "vid": "132"
+    },
+    {
+      "section": {
+        "id": "discord-integration",
+        "title": "Discord Integration",
+        "content": "\n",
+        "page_id": "discord-integration",
+        "level": 1
+      },
+      "vid": "133"
+    },
+    {
+      "section": {
+        "id": "discord-integration#srcindexts-2",
+        "title": "配線（`src/index.ts`）",
+        "content": "\n- Client 初期化、Intent: `Guilds` / `GuildMessages` / `MessageContent`\n- `MessageCreate` → guard → `ResponsePlanner`\n- `InteractionCreate` → `handleCommand`\n- 返信は `allowedMentions: { parse: [] }` を維持\n\nビジネスロジックをここに大量追加しない。配線とディスパッチに留める。\n\n",
+        "page_id": "discord-integration",
+        "level": 2
+      },
+      "vid": "134"
+    },
+    {
+      "section": {
+        "id": "discord-integration#srccommandsts-3",
+        "title": "スラッシュコマンド（`src/commands.ts`）",
+        "content": "\nプレフィックス `nisei_`。例: `nisei_help`, `nisei_uranai`, `nisei_haiku`, `nisei_stats`, `nisei_poke`, `nisei_treasure`, `nisei_forget`, `nisei_wiki`, `nisei_kanchigai`, `nisei_album`, `nisei_quiz`, `nisei_janken`, `nisei_shizuka`, `nisei_hatsugen`, `nisei_summary`。\n\n追加・変更後は必ず:\n\n```bash\nnpm run deploy:commands\n```\n\n定義は `commands.ts`、処理は `index.ts` の `handleCommand`、登録スクリプトは `deploy-commands.ts`。\n\n",
+        "page_id": "discord-integration",
+        "level": 2
+      },
+      "vid": "135"
+    },
+    {
+      "section": {
+        "id": "discord-integration#-4",
+        "title": "周辺",
+        "content": "\n| ファイル | 役割 |\n|----------|------|\n| `message-guard.ts` | 対象外・重複メッセージの除外 |\n| `channel-activity.ts` | チャンネル活動度 |\n| `channel-summary.ts` | 要約（Gemini 利用の場合あり）。ログ作者名は `GuildMember.displayName`（必要時 REST で members fetch） |\n| `summary-page-store.ts` | 要約ページの Discord 側保持 |\n| `quiet-channel.ts` | 静音チャンネル判定 |\n\n",
+        "page_id": "discord-integration",
+        "level": 2
+      },
+      "vid": "136"
+    },
+    {
+      "section": {
+        "id": "discord-integration#see-also-5",
+        "title": "See Also",
+        "content": "\n- [Architecture](wiki://architecture)\n- [Configuration](wiki://configuration)\n- [Deployment](wiki://deployment)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
+        "page_id": "discord-integration",
+        "level": 2
+      },
+      "vid": "137"
     }
   ]
 }
