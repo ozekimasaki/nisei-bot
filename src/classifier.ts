@@ -6,6 +6,7 @@ export type MessageIntent =
   | { type: "wikiSearch"; query: string }
   | { type: "greeting"; kind: "morning" | "night" | "home" | "other" }
   | { type: "fortune" }
+  | { type: "dice"; formula?: string }
   | { type: "haiku" }
   | { type: "poke" }
   | { type: "treasure" }
@@ -51,6 +52,35 @@ const handAliases: Record<string, JankenHand> = {
 
 function normalize(text: string): string {
   return text.trim().replace(/\s+/g, " ");
+}
+
+const DICE_FORMULA_RE =
+  /^(?:S?\d*[dD]\d+(?:[+\-*/]\d+)*|CC\s*(?:<=|>=|<|>|=)\s*\d+|choice\[[^\]]+\])$/iu;
+
+function looksLikeDiceFormula(text: string): boolean {
+  return DICE_FORMULA_RE.test(text.trim());
+}
+
+function stripBotCall(text: string, options: ClassifierOptions): string {
+  let rest = text;
+  if (options.botUserId) {
+    rest = rest.replaceAll(`<@${options.botUserId}>`, " ").replaceAll(`<@!${options.botUserId}>`, " ");
+  }
+  for (const name of options.botNames) {
+    rest = rest.replaceAll(name, " ");
+  }
+  return normalize(rest);
+}
+
+export function extractDiceFormula(text: string, options: ClassifierOptions): string | null {
+  const rest = stripBotCall(text, options);
+  const withRoll = rest.match(/^(.+?)\s*(?:を)?(?:振って|ふって|振れ|ふれ)[。.!！]*$/u);
+  if (withRoll) {
+    const candidate = (withRoll[1] ?? "").trim();
+    if (looksLikeDiceFormula(candidate)) return candidate;
+  }
+  if (isCalled(text, options) && looksLikeDiceFormula(rest)) return rest;
+  return null;
 }
 
 export function isCalled(text: string, options: ClassifierOptions): boolean {
@@ -135,6 +165,13 @@ export function classifyMessage(text: string, options: ClassifierOptions): Messa
   if (hand) return { type: "jankenHand", hand };
 
   if (/占(?:い|って|う)|うらない|運勢/u.test(normalized)) return { type: "fortune" };
+
+  if (/サイコロ\s*(?:を)?\s*(?:振って|ふって|振れ|ふれ)/u.test(normalized)) {
+    return { type: "dice" };
+  }
+  const diceFormula = extractDiceFormula(normalized, options);
+  if (diceFormula) return { type: "dice", formula: diceFormula };
+
   if (/俳句|一句|575|五七五/u.test(normalized)) return { type: "haiku" };
   if (/つんつん|つっつ|poke|にせいつん/u.test(normalized)) return { type: "poke" };
   if (/たからもの|宝物|宝もの|treasure/u.test(normalized)) return { type: "treasure" };

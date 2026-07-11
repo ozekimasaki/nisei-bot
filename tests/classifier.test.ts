@@ -51,6 +51,13 @@ describe("classifyMessage", () => {
     expect(classifyMessage("じゃんけん", options)).toEqual({ type: "jankenStart" });
     expect(classifyMessage("ぐー", options)).toEqual({ type: "jankenHand", hand: "gu" });
     expect(classifyMessage("占って", options)).toEqual({ type: "fortune" });
+    expect(classifyMessage("サイコロ振って", options)).toEqual({ type: "dice" });
+    expect(classifyMessage("サイコロふって", options)).toEqual({ type: "dice" });
+    expect(classifyMessage("ちせい　サイコロ振って", { ...options, botNames: ["ちせい", "にせい"] })).toEqual({
+      type: "dice"
+    });
+    expect(classifyMessage("2d6振って", options)).toEqual({ type: "dice", formula: "2d6" });
+    expect(classifyMessage("にせい 1d100+10", options)).toEqual({ type: "dice", formula: "1d100+10" });
     expect(classifyMessage("俳句", options)).toEqual({ type: "haiku" });
     expect(classifyMessage("つんつん", options)).toEqual({ type: "poke" });
     expect(classifyMessage("たからもの", options)).toEqual({ type: "treasure" });

@@ -1,3 +1,4 @@
+import { formatRainbowAnsi } from "./ansi-rainbow.js";
 import { memoryMixMultiplier, wrongUserRateBonus } from "./affection.js";
 import { BotReplyTracker } from "./bot-context.js";
 import { type ClassifierOptions, classifyMessage, isCalled } from "./classifier.js";
@@ -12,6 +13,7 @@ import { ConfusionEngine } from "./confusion.js";
 import type { AppConfig } from "./config.js";
 import { type KnownUserSummary, type MemoryStore } from "./db.js";
 import { buildEmojiPool, defaultReactions, defaultThoughts, defaultWords, maybeEmoji } from "./default-brain.js";
+import { DiceRoller } from "./dice.js";
 import { FortuneGenerator } from "./fortune.js";
 import { HaikuGenerator } from "./haiku.js";
 import { JankenGame } from "./janken.js";
@@ -52,9 +54,15 @@ export type IncomingMessage = {
   attachments?: { image: boolean; gif: boolean };
 };
 
+export type ResponseFollowUp = {
+  text: string;
+  delayMs: number;
+};
+
 export type ResponseResult = {
   text?: string;
   shouldReply: boolean;
+  followUps?: ResponseFollowUp[];
 };
 
 export class ResponsePlanner {
@@ -62,6 +70,7 @@ export class ResponsePlanner {
   private readonly confusion: ConfusionEngine;
   private readonly janken: JankenGame;
   private readonly fortune: FortuneGenerator;
+  private readonly dice: DiceRoller;
   private readonly haiku: HaikuGenerator;
   private readonly personality: PersonalityEngine;
   private readonly botReplies = new BotReplyTracker();
@@ -77,6 +86,7 @@ export class ResponsePlanner {
     this.confusion = new ConfusionEngine(random, config.confusionRate, config.memoryMixRate);
     this.janken = new JankenGame(random, config.jankenWinRate);
     this.fortune = new FortuneGenerator(random);
+    this.dice = new DiceRoller(random);
     this.haiku = new HaikuGenerator(random);
     this.personality = new PersonalityEngine(random);
   }
@@ -273,6 +283,10 @@ export class ResponsePlanner {
         const extra = seasonal ? `\n${seasonal}かも` : `\n${snack}かも`;
         return this.reply(input, `${base}${extra}`, mood);
       }
+      case "dice": {
+        await this.store.markSpoke(input.guildId, mood);
+        return this.diceReply(input, intent.formula, mood);
+      }
       case "haiku": {
         const [facts, snippets] = await Promise.all([
           this.store.randomFacts(input.guildId, 8),
@@ -325,6 +339,8 @@ export class ResponsePlanner {
       "・○○は？、でこたえる",
       "・○○ 調べて、でしらべる",
       "・占って、でうらない",
+      "・サイコロ振って、で1d100",
+      "・2d6振って、でその式",
       "・俳句、でなんかよむ",
       "・じゃんけん、であそぶ",
       "・おやすみ、でおはよする",
@@ -445,10 +461,56 @@ export class ResponsePlanner {
     return withMaybeOpener(this.random, `${treasure.word}。たからもの`);
   }
 
-  private reply(input: IncomingMessage, text: string, mood: Mood, subject?: string): ResponseResult {
+  private reply(
+    input: IncomingMessage,
+    text: string,
+    mood: Mood,
+    subject?: string,
+    followUps?: ResponseFollowUp[]
+  ): ResponseResult {
     this.botReplies.record(input.guildId, input.channelId, text, subject);
     const suffix = mood === "confused" || mood === "sleepy" ? this.mood.questionSuffix(mood) : "";
-    return { shouldReply: true, text: `${text}${suffix}` };
+    return {
+      shouldReply: true,
+      text: `${text}${suffix}`,
+      ...(followUps && followUps.length > 0 ? { followUps } : {})
+    };
+  }
+
+  private async diceReply(input: IncomingMessage, formula: string | undefined, mood: Mood): Promise<ResponseResult> {
+    if (formula) {
+      const rolled = await this.dice.rollFormula(formula);
+      if (!rolled.ok) {
+        return this.reply(
+          input,
+          withMaybeOpener(this.random, this.random.pick(["わかんない式", "それふれない", "むずかしい"])),
+          mood
+        );
+      }
+      const tease = withMaybeOpener(
+        this.random,
+        this.random.pick(["へへ　ふるー…", "さいころ　いくよ", "ふるふる…", "まってて"])
+      );
+      const comment = this.random.pick(["でた！", "つよい", "たぶんこれ", "かち", "へへ"]);
+      const resultText = [comment, "", formatRainbowAnsi(rolled.display)].join("\n");
+      return this.reply(input, tease, mood, undefined, [
+        { text: resultText, delayMs: this.random.int(800, 1500) }
+      ]);
+    }
+
+    const rolled = this.dice.roll1d100();
+    if (!rolled.ok) {
+      return this.reply(input, withMaybeOpener(this.random, "わかんない"), mood);
+    }
+    const tease = withMaybeOpener(
+      this.random,
+      this.random.pick(["へへ　ふるー…", "さいころ　いくよ", "1d100　いくよ", "ふるふる…"])
+    );
+    const comment = this.random.pick(["でた！", "つよい", "たぶんこれ", "かち", "へへ"]);
+    const resultText = [comment, "", formatRainbowAnsi(rolled.display)].join("\n");
+    return this.reply(input, tease, mood, undefined, [
+      { text: resultText, delayMs: this.random.int(800, 1500) }
+    ]);
   }
 
   private tryTsukkomi(input: IncomingMessage, intent: { type: string }): string | null {

@@ -99,6 +99,15 @@ client.on(Events.MessageCreate, async (message: Message) => {
         content: result.text,
         allowedMentions: { parse: [] }
       });
+      if (result.followUps) {
+        for (const followUp of result.followUps) {
+          await sleep(followUp.delayMs);
+          await message.channel.send({
+            content: followUp.text,
+            allowedMentions: { parse: [] }
+          });
+        }
+      }
     }
 
     messageGuard.complete(message.id);
@@ -376,6 +385,10 @@ function summarizeAttachments(message: Message): { image: boolean; gif: boolean 
     if (contentType.startsWith("image/")) image = true;
   }
   return { image, gif };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 process.on("SIGINT", shutdown);
