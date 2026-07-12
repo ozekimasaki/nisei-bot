@@ -355,7 +355,7 @@
     "affected_pages": []
   },
   {
-    "timestamp": "1783793370437",
+    "timestamp": "0",
     "operation": "pages update",
     "actor": "agent:cursor",
     "summary": "Updated page: discord-integration",
@@ -363,5 +363,101 @@
     "affected_pages": [
       "discord-integration"
     ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "lint",
+    "actor": "indexion",
+    "summary": "0 issues found across 13 pages",
+    "details": {},
+    "affected_pages": []
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: feature-engines",
+    "details": {},
+    "affected_pages": [
+      "feature-engines"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: discord-integration",
+    "details": {},
+    "affected_pages": [
+      "discord-integration"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: configuration",
+    "details": {},
+    "affected_pages": [
+      "configuration"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: agent-ownership",
+    "details": {},
+    "affected_pages": [
+      "agent-ownership"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "lint",
+    "actor": "indexion",
+    "summary": "2 issues found across 13 pages",
+    "details": {},
+    "affected_pages": [
+      "feature-engines"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: feature-engines",
+    "details": {},
+    "affected_pages": [
+      "feature-engines"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: discord-integration",
+    "details": {},
+    "affected_pages": [
+      "discord-integration"
+    ]
+  },
+  {
+    "timestamp": "0",
+    "operation": "pages update",
+    "actor": "agent:cursor",
+    "summary": "Updated page: agent-ownership",
+    "details": {},
+    "affected_pages": [
+      "agent-ownership"
+    ]
+  },
+  {
+    "timestamp": "1783857830814",
+    "operation": "lint",
+    "actor": "indexion",
+    "summary": "0 issues found across 13 pages",
+    "details": {},
+    "affected_pages": []
   }
 ]

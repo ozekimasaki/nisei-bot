@@ -15,6 +15,7 @@
 | 占い・俳句・じゃんけん等 | 各 `src/*.ts` エンジン |
 | デフォルト語彙・リアクション | `src/default-brain.ts` |
 | 静音・活動・要約 | `quiet-channel.ts` / `channel-activity.ts` / `channel-summary.ts` |
+| AI各社ステータス説明 | `ai-status.ts` + `commands.ts` + `index.ts` の `handleAiStatusCommand` |
 
 ## 避けること
 
@@ -40,6 +41,7 @@ indexion plan reconcile --doc='.indexion/wiki/*.md' --doc-spec=markdown --format
 - [Overview](wiki://overview)
 - [Testing](wiki://testing)
 - [Discord Integration](wiki://discord-integration)
+- [Feature Engines](wiki://feature-engines)
 - [Response Pipeline](wiki://response-pipeline)
 - [Intent Classification](wiki://intent-classification)
 - [Memory Store](wiki://memory-store)

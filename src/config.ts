@@ -44,6 +44,7 @@ export type AppConfig = {
   geminiApiKey?: string;
   geminiModel: string;
   geminiThinkingLevel: GeminiThinkingLevel;
+  aiStatusTimeoutMs: number;
 };
 
 function requiredEnv(name: string): string {
@@ -139,6 +140,7 @@ export function loadConfig(): AppConfig {
     idleChatterMinutes: numberEnv("IDLE_CHATTER_MINUTES", 30),
     geminiApiKey: process.env.GEMINI_API_KEY || undefined,
     geminiModel: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
-    geminiThinkingLevel: geminiThinkingLevelEnv()
+    geminiThinkingLevel: geminiThinkingLevelEnv(),
+    aiStatusTimeoutMs: numberEnv("AI_STATUS_TIMEOUT_MS", 8000)
   };
 }

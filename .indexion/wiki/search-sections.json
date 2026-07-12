@@ -3,38 +3,8 @@
     "kind": "tfidf",
     "dim": 256
   },
-  "next_vid": "138",
+  "next_vid": "169",
   "entries": [
-    {
-      "section": {
-        "id": "feature-engines",
-        "title": "Feature Engines",
-        "content": "\n単機能ロジックは `src/*.ts` に分離し、`ResponsePlanner` から呼び出す。\n\n| エンジン | ファイル | 概要 |\n|----------|----------|------|\n| 占い | `fortune.ts` | 運勢・ラッキーカラー・アイテム |\n| 俳句 | `haiku.ts` | 雑なモーラ推定で五七五っぽく |\n| じゃんけん | `janken.ts` | 高勝率・連勝セッション |\n| ダイス | `dice.ts` | BCDice 連携 |\n| クイズ | `quiz.ts` | 覚えている知識からのクイズ |\n| Wikipedia | `wikipedia.ts` + `wiki-cooldown.ts` | 調べもの＋クールダウン |\n| 季節 | `seasonal.ts` | 季節ネタ |\n| 虹色 ANSI | `ansi-rainbow.ts` | Discord `ansi` フェンス用 |\n\n",
-        "page_id": "feature-engines",
-        "level": 1
-      },
-      "vid": "33"
-    },
-    {
-      "section": {
-        "id": "feature-engines#-2",
-        "title": "編集ルール",
-        "content": "\n- 純粋関数寄りのロジックはエンジン側に置く\n- 分類キーワードは `classifier.ts`、永続化は `db.ts`\n- 挙動を変えたら対応する `tests/*.test.ts` を更新\n\n",
-        "page_id": "feature-engines",
-        "level": 2
-      },
-      "vid": "34"
-    },
-    {
-      "section": {
-        "id": "feature-engines#see-also-3",
-        "title": "See Also",
-        "content": "\n- [Intent Classification](wiki://intent-classification)\n- [Response Pipeline](wiki://response-pipeline)\n- [Testing](wiki://testing)\n",
-        "page_id": "feature-engines",
-        "level": 2
-      },
-      "vid": "35"
-    },
     {
       "section": {
         "id": "personality-and-mood",
@@ -337,36 +307,6 @@
     },
     {
       "section": {
-        "id": "configuration",
-        "title": "Configuration",
-        "content": "\n環境変数の読み込みとデフォルトは `src/config.ts`。新しい env は `.env.example` も同時更新する。秘密情報は `.env` のみ（コミットしない）。\n\n",
-        "page_id": "configuration",
-        "level": 1
-      },
-      "vid": "104"
-    },
-    {
-      "section": {
-        "id": "configuration#-2",
-        "title": "代表的な設定",
-        "content": "\n| 変数 | 意味 |\n|------|------|\n| `DISCORD_TOKEN` / `CLIENT_ID` / `GUILD_ID` | Discord 接続 |\n| `DATABASE_URL` | PostgreSQL |\n| `BOT_NAMES` / `BOT_DISPLAY_NAME` | 呼び名 |\n| `TALK_LEVEL` | 話しやすさ（1–10 系）。`TALKATIVENESS` は非推奨フォールバック |\n| `CONFUSION_RATE` 等 | 勘違い・沈黙・絵文字などの確率 |\n| `JANKEN_WIN_RATE` | じゃんけん勝率 |\n| `GEMINI_*` | チャンネル要約など任意の Gemini 連携 |\n\n数値レートは `numberEnv` パターンに従う。ギルド単位の talk level 上書きは `GuildState.talkLevel` + `talk-level.ts`。\n\n",
-        "page_id": "configuration",
-        "level": 2
-      },
-      "vid": "105"
-    },
-    {
-      "section": {
-        "id": "configuration#see-also-3",
-        "title": "See Also",
-        "content": "\n- [Getting Started](wiki://getting-started)\n- [Deployment](wiki://deployment)\n- [Discord Integration](wiki://discord-integration)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
-        "page_id": "configuration",
-        "level": 2
-      },
-      "vid": "106"
-    },
-    {
-      "section": {
         "id": "deployment",
         "title": "Deployment",
         "content": "\n",
@@ -507,63 +447,63 @@
     },
     {
       "section": {
-        "id": "agent-ownership",
-        "title": "Agent Ownership",
-        "content": "\nコーディングエージェントが「どこを編集するか」の正本。詳細規約と indexion の使い方は [AGENTS.md](../../AGENTS.md)（indexion ナレッジベース節）を参照。\n\n",
-        "page_id": "agent-ownership",
+        "id": "configuration",
+        "title": "Configuration",
+        "content": "\n環境変数の読み込みとデフォルトは `src/config.ts`。新しい env は `.env.example` も同時更新する。秘密情報は `.env` のみ（コミットしない）。\n\n",
+        "page_id": "configuration",
         "level": 1
       },
-      "vid": "127"
+      "vid": "146"
     },
     {
       "section": {
-        "id": "agent-ownership#-2",
-        "title": "オーナーシップ表",
-        "content": "\n| 変更したいこと | 主な編集先 |\n|---|---|\n| 意図判定（正規表現・キーワード） | `src/classifier.ts` |\n| 返答ロジック・新会話パターン | `src/responder.ts` |\n| DB 読み書き・スキーマ | `src/db.ts` + `prisma/schema.prisma` |\n| スラッシュコマンド定義 | `src/commands.ts` |\n| スラッシュコマンド処理 | `src/index.ts` の `handleCommand` |\n| 環境変数・デフォルト | `src/config.ts`、`.env.example` |\n| 占い・俳句・じゃんけん等 | 各 `src/*.ts` エンジン |\n| デフォルト語彙・リアクション | `src/default-brain.ts` |\n| 静音・活動・要約 | `quiet-channel.ts` / `channel-activity.ts` / `channel-summary.ts` |\n\n",
-        "page_id": "agent-ownership",
+        "id": "configuration#-2",
+        "title": "代表的な設定",
+        "content": "\n| 変数 | 意味 |\n|------|------|\n| `DISCORD_TOKEN` / `CLIENT_ID` / `GUILD_ID` | Discord 接続 |\n| `DATABASE_URL` | PostgreSQL |\n| `BOT_NAMES` / `BOT_DISPLAY_NAME` | 呼び名 |\n| `TALK_LEVEL` | 話しやすさ（1–10 系）。`TALKATIVENESS` は非推奨フォールバック |\n| `CONFUSION_RATE` 等 | 勘違い・沈黙・絵文字などの確率 |\n| `JANKEN_WIN_RATE` | じゃんけん勝率 |\n| `GEMINI_*` | チャンネル要約・AIステータス説明など任意の Gemini 連携 |\n| `AI_STATUS_TIMEOUT_MS` | `/nisei_ai_status` のステータス取得タイムアウト（既定 8000） |\n\n数値レートは `numberEnv` パターンに従う。ギルド単位の talk level 上書きは `GuildState.talkLevel` + `talk-level.ts`。\n\n",
+        "page_id": "configuration",
         "level": 2
       },
-      "vid": "128"
+      "vid": "147"
     },
     {
       "section": {
-        "id": "agent-ownership#-3",
-        "title": "避けること",
-        "content": "\n- `src/index.ts` にビジネスロジックを大量追加しない\n- `scripts/` を本番経路に組み込まない\n- pm2 cluster 化など Gateway 二重接続を招く変更\n\n",
-        "page_id": "agent-ownership",
-        "level": 2
-      },
-      "vid": "129"
-    },
-    {
-      "section": {
-        "id": "agent-ownership#indexion--4",
-        "title": "indexion の使い方",
-        "content": "\n```powershell\n",
-        "page_id": "agent-ownership",
-        "level": 2
-      },
-      "vid": "130"
-    },
-    {
-      "section": {
-        "id": "agent-ownership#path--userprofileindexionbin--5",
-        "title": "PATH に %USERPROFILE%\\.indexion\\bin を追加済み想定",
-        "content": "indexion wiki index build --wiki-dir=.indexion/wiki\nindexion search \"じゃんけん\" .indexion/wiki/\nindexion agent orient --task \"add quiet-channel tests\" --output .indexion/cache/agent/orient.md .\nindexion plan reconcile --doc='.indexion/wiki/*.md' --doc-spec=markdown --format=md .\n```\n\n編集前に [Architecture](wiki://architecture) とこのページを読む。実装後は `wiki pages ingest` でソース変更を検知し、必要ならページを `wiki pages update` する。\n\n",
-        "page_id": "agent-ownership",
-        "level": 2
-      },
-      "vid": "131"
-    },
-    {
-      "section": {
-        "id": "agent-ownership#see-also-6",
+        "id": "configuration#see-also-3",
         "title": "See Also",
-        "content": "\n- [Architecture](wiki://architecture)\n- [Overview](wiki://overview)\n- [Testing](wiki://testing)\n- [Discord Integration](wiki://discord-integration)\n- [Response Pipeline](wiki://response-pipeline)\n- [Intent Classification](wiki://intent-classification)\n- [Memory Store](wiki://memory-store)\n- [Configuration](wiki://configuration)\n\n\n",
-        "page_id": "agent-ownership",
+        "content": "\n- [Getting Started](wiki://getting-started)\n- [Deployment](wiki://deployment)\n- [Discord Integration](wiki://discord-integration)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
+        "page_id": "configuration",
         "level": 2
       },
-      "vid": "132"
+      "vid": "148"
+    },
+    {
+      "section": {
+        "id": "feature-engines",
+        "title": "Feature Engines",
+        "content": "\n単機能ロジックは `src/*.ts` に分離し、`ResponsePlanner` から呼び出す。\n\n| エンジン | ファイル | 概要 |\n|----------|----------|------|\n| 占い | `fortune.ts` | 運勢・ラッキーカラー・アイテム |\n| 俳句 | `haiku.ts` | 雑なモーラ推定で五七五っぽく |\n| じゃんけん | `janken.ts` | 高勝率・連勝セッション |\n| ダイス | `dice.ts` | BCDice 連携 |\n| クイズ | `quiz.ts` | 覚えている知識からのクイズ |\n| Wikipedia | `wikipedia.ts` + `wiki-cooldown.ts` | 調べもの＋クールダウン |\n| AIステータス | `ai-status.ts` | `/nisei_ai_status`。OpenAI/Claude/Google/xAI の公式ステータスを取得し Gemini でにせい口調で説明 |\n| 季節 | `seasonal.ts` | 季節ネタ |\n| 虹色 ANSI | `ansi-rainbow.ts` | Discord `ansi` フェンス用 |\n\n",
+        "page_id": "feature-engines",
+        "level": 1
+      },
+      "vid": "155"
+    },
+    {
+      "section": {
+        "id": "feature-engines#-2",
+        "title": "編集ルール",
+        "content": "\n- 純粋関数寄りのロジックはエンジン側に置く\n- 分類キーワードは `classifier.ts`、永続化は `db.ts`\n- 挙動を変えたら対応する `tests/*.test.ts` を更新\n\n",
+        "page_id": "feature-engines",
+        "level": 2
+      },
+      "vid": "156"
+    },
+    {
+      "section": {
+        "id": "feature-engines#see-also-3",
+        "title": "See Also",
+        "content": "\n- [Intent Classification](wiki://intent-classification)\n- [Response Pipeline](wiki://response-pipeline)\n- [Discord Integration](wiki://discord-integration)\n- [Agent Ownership](wiki://agent-ownership)\n- [Testing](wiki://testing)\n",
+        "page_id": "feature-engines",
+        "level": 2
+      },
+      "vid": "157"
     },
     {
       "section": {
@@ -573,7 +513,7 @@
         "page_id": "discord-integration",
         "level": 1
       },
-      "vid": "133"
+      "vid": "158"
     },
     {
       "section": {
@@ -583,37 +523,97 @@
         "page_id": "discord-integration",
         "level": 2
       },
-      "vid": "134"
+      "vid": "159"
     },
     {
       "section": {
         "id": "discord-integration#srccommandsts-3",
         "title": "スラッシュコマンド（`src/commands.ts`）",
-        "content": "\nプレフィックス `nisei_`。例: `nisei_help`, `nisei_uranai`, `nisei_haiku`, `nisei_stats`, `nisei_poke`, `nisei_treasure`, `nisei_forget`, `nisei_wiki`, `nisei_kanchigai`, `nisei_album`, `nisei_quiz`, `nisei_janken`, `nisei_shizuka`, `nisei_hatsugen`, `nisei_summary`。\n\n追加・変更後は必ず:\n\n```bash\nnpm run deploy:commands\n```\n\n定義は `commands.ts`、処理は `index.ts` の `handleCommand`、登録スクリプトは `deploy-commands.ts`。\n\n",
+        "content": "\nプレフィックス `nisei_`。例: `nisei_help`, `nisei_uranai`, `nisei_haiku`, `nisei_stats`, `nisei_poke`, `nisei_treasure`, `nisei_forget`, `nisei_wiki`, `nisei_kanchigai`, `nisei_album`, `nisei_quiz`, `nisei_janken`, `nisei_shizuka`, `nisei_hatsugen`, `nisei_summary`, `nisei_ai_status`。\n\n追加・変更後は必ず:\n\n```bash\nnpm run deploy:commands\n```\n\n定義は `commands.ts`、処理は `index.ts` の `handleCommand`（要約・AIステータスなど複雑 UI / 長時間処理は別 handler）、登録スクリプトは `deploy-commands.ts`。\n\n",
         "page_id": "discord-integration",
         "level": 2
       },
-      "vid": "135"
+      "vid": "160"
     },
     {
       "section": {
         "id": "discord-integration#-4",
         "title": "周辺",
-        "content": "\n| ファイル | 役割 |\n|----------|------|\n| `message-guard.ts` | 対象外・重複メッセージの除外 |\n| `channel-activity.ts` | チャンネル活動度 |\n| `channel-summary.ts` | 要約（Gemini 利用の場合あり）。ログ作者名は `GuildMember.displayName`（必要時 REST で members fetch） |\n| `summary-page-store.ts` | 要約ページの Discord 側保持 |\n| `quiet-channel.ts` | 静音チャンネル判定 |\n\n",
+        "content": "\n| ファイル | 役割 |\n|----------|------|\n| `message-guard.ts` | 対象外・重複メッセージの除外 |\n| `channel-activity.ts` | チャンネル活動度 |\n| `channel-summary.ts` | 要約（Gemini 利用の場合あり）。ログ作者名は `GuildMember.displayName`（必要時 REST で members fetch） |\n| `summary-page-store.ts` | 要約ページの Discord 側保持 |\n| `ai-status.ts` | `/nisei_ai_status` 用。社別ステータス取得＋Gemini でにせい口調化 |\n| `quiet-channel.ts` | 静音チャンネル判定 |\n\n",
         "page_id": "discord-integration",
         "level": 2
       },
-      "vid": "136"
+      "vid": "161"
     },
     {
       "section": {
         "id": "discord-integration#see-also-5",
         "title": "See Also",
-        "content": "\n- [Architecture](wiki://architecture)\n- [Configuration](wiki://configuration)\n- [Deployment](wiki://deployment)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
+        "content": "\n- [Architecture](wiki://architecture)\n- [Configuration](wiki://configuration)\n- [Deployment](wiki://deployment)\n- [Feature Engines](wiki://feature-engines)\n- [Agent Ownership](wiki://agent-ownership)\n\n",
         "page_id": "discord-integration",
         "level": 2
       },
-      "vid": "137"
+      "vid": "162"
+    },
+    {
+      "section": {
+        "id": "agent-ownership",
+        "title": "Agent Ownership",
+        "content": "\nコーディングエージェントが「どこを編集するか」の正本。詳細規約と indexion の使い方は [AGENTS.md](../../AGENTS.md)（indexion ナレッジベース節）を参照。\n\n",
+        "page_id": "agent-ownership",
+        "level": 1
+      },
+      "vid": "163"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#-2",
+        "title": "オーナーシップ表",
+        "content": "\n| 変更したいこと | 主な編集先 |\n|---|---|\n| 意図判定（正規表現・キーワード） | `src/classifier.ts` |\n| 返答ロジック・新会話パターン | `src/responder.ts` |\n| DB 読み書き・スキーマ | `src/db.ts` + `prisma/schema.prisma` |\n| スラッシュコマンド定義 | `src/commands.ts` |\n| スラッシュコマンド処理 | `src/index.ts` の `handleCommand` |\n| 環境変数・デフォルト | `src/config.ts`、`.env.example` |\n| 占い・俳句・じゃんけん等 | 各 `src/*.ts` エンジン |\n| デフォルト語彙・リアクション | `src/default-brain.ts` |\n| 静音・活動・要約 | `quiet-channel.ts` / `channel-activity.ts` / `channel-summary.ts` |\n| AI各社ステータス説明 | `ai-status.ts` + `commands.ts` + `index.ts` の `handleAiStatusCommand` |\n\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "164"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#-3",
+        "title": "避けること",
+        "content": "\n- `src/index.ts` にビジネスロジックを大量追加しない\n- `scripts/` を本番経路に組み込まない\n- pm2 cluster 化など Gateway 二重接続を招く変更\n\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "165"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#indexion--4",
+        "title": "indexion の使い方",
+        "content": "\n```powershell\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "166"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#path--userprofileindexionbin--5",
+        "title": "PATH に %USERPROFILE%\\.indexion\\bin を追加済み想定",
+        "content": "indexion wiki index build --wiki-dir=.indexion/wiki\nindexion search \"じゃんけん\" .indexion/wiki/\nindexion agent orient --task \"add quiet-channel tests\" --output .indexion/cache/agent/orient.md .\nindexion plan reconcile --doc='.indexion/wiki/*.md' --doc-spec=markdown --format=md .\n```\n\n編集前に [Architecture](wiki://architecture) とこのページを読む。実装後は `wiki pages ingest` でソース変更を検知し、必要ならページを `wiki pages update` する。\n\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "167"
+    },
+    {
+      "section": {
+        "id": "agent-ownership#see-also-6",
+        "title": "See Also",
+        "content": "\n- [Architecture](wiki://architecture)\n- [Overview](wiki://overview)\n- [Testing](wiki://testing)\n- [Discord Integration](wiki://discord-integration)\n- [Feature Engines](wiki://feature-engines)\n- [Response Pipeline](wiki://response-pipeline)\n- [Intent Classification](wiki://intent-classification)\n- [Memory Store](wiki://memory-store)\n- [Configuration](wiki://configuration)\n\n\n",
+        "page_id": "agent-ownership",
+        "level": 2
+      },
+      "vid": "168"
     }
   ]
 }

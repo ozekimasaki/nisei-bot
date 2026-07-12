@@ -84,5 +84,20 @@ export const slashCommands = [
         .setDescription("まとめるチャンネル")
         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
         .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName("nisei_ai_status")
+    .setDescription("AI各社のステータスをにせいが説明する")
+    .addStringOption((option) =>
+      option
+        .setName("provider")
+        .setDescription("調べる会社")
+        .setRequired(true)
+        .addChoices(
+          { name: "OpenAI", value: "openai" },
+          { name: "Google (Gemini / AI Studio)", value: "google" },
+          { name: "Claude", value: "claude" },
+          { name: "xAI", value: "xai" }
+        )
     )
 ].map((command) => command.toJSON());

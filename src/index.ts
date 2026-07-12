@@ -22,6 +22,11 @@ import {
   SUMMARY_SKIP_BUTTON_ID,
   summarizeChannelDay
 } from "./channel-summary.js";
+import {
+  explainAiStatusInNiseiStyle,
+  fetchProviderStatus,
+  isAiStatusProviderId
+} from "./ai-status.js";
 import { loadConfig } from "./config.js";
 import { ChannelActivityTracker } from "./channel-activity.js";
 import { MemoryStore, prisma } from "./db.js";
@@ -129,6 +134,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.commandName === "nisei_summary") {
       await handleSummaryCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === "nisei_ai_status") {
+      await handleAiStatusCommand(interaction);
       return;
     }
 
@@ -248,6 +258,59 @@ async function handleSummaryCommand(interaction: ChatInputCommandInteraction): P
       return;
     }
     await replyEmbed(buildErrorEmbed("まとめられなかった。あとでまたやって"));
+  }
+}
+
+async function handleAiStatusCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    await interaction.reply({
+      content: "サーバーじゃないと調べられない",
+      allowedMentions: { parse: [] }
+    });
+    return;
+  }
+
+  await interaction.deferReply();
+  await store.rememberUser(guildId, interaction.user.id, interactionDisplayName(interaction));
+
+  const replyText = async (content: string) => {
+    await interaction.editReply({
+      content,
+      allowedMentions: { parse: [] }
+    });
+  };
+
+  if (!config.geminiApiKey) {
+    await replyText("Geminiのキーがない。`.env` に `GEMINI_API_KEY` 書いて");
+    return;
+  }
+
+  const providerRaw = interaction.options.getString("provider", true);
+  if (!isAiStatusProviderId(providerRaw)) {
+    await replyText("その会社しらない");
+    return;
+  }
+
+  try {
+    const status = await fetchProviderStatus(providerRaw, {
+      timeoutMs: config.aiStatusTimeoutMs,
+      userAgent: config.wikiUserAgent
+    });
+    const text = await explainAiStatusInNiseiStyle({
+      apiKey: config.geminiApiKey,
+      model: config.geminiModel,
+      thinkingLevel: config.geminiThinkingLevel,
+      status
+    });
+    await replyText(text);
+  } catch (error) {
+    console.error("Failed to explain AI status", error);
+    if (error instanceof Error && error.message === "empty_gemini_response") {
+      await replyText("なにも言えなくなった");
+      return;
+    }
+    await replyText("しらべられなかった。あとでまたやって");
   }
 }
 

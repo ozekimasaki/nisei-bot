@@ -10,6 +10,7 @@
 | ダイス | `dice.ts` | BCDice 連携 |
 | クイズ | `quiz.ts` | 覚えている知識からのクイズ |
 | Wikipedia | `wikipedia.ts` + `wiki-cooldown.ts` | 調べもの＋クールダウン |
+| AIステータス | `ai-status.ts` | `/nisei_ai_status`。OpenAI/Claude/Google/xAI の公式ステータスを取得し Gemini でにせい口調で説明 |
 | 季節 | `seasonal.ts` | 季節ネタ |
 | 虹色 ANSI | `ansi-rainbow.ts` | Discord `ansi` フェンス用 |
 
@@ -23,4 +24,6 @@
 
 - [Intent Classification](wiki://intent-classification)
 - [Response Pipeline](wiki://response-pipeline)
+- [Discord Integration](wiki://discord-integration)
+- [Agent Ownership](wiki://agent-ownership)
 - [Testing](wiki://testing)

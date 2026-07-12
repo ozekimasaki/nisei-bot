@@ -11,7 +11,7 @@
 
 ## スラッシュコマンド（`src/commands.ts`）
 
-プレフィックス `nisei_`。例: `nisei_help`, `nisei_uranai`, `nisei_haiku`, `nisei_stats`, `nisei_poke`, `nisei_treasure`, `nisei_forget`, `nisei_wiki`, `nisei_kanchigai`, `nisei_album`, `nisei_quiz`, `nisei_janken`, `nisei_shizuka`, `nisei_hatsugen`, `nisei_summary`。
+プレフィックス `nisei_`。例: `nisei_help`, `nisei_uranai`, `nisei_haiku`, `nisei_stats`, `nisei_poke`, `nisei_treasure`, `nisei_forget`, `nisei_wiki`, `nisei_kanchigai`, `nisei_album`, `nisei_quiz`, `nisei_janken`, `nisei_shizuka`, `nisei_hatsugen`, `nisei_summary`, `nisei_ai_status`。
 
 追加・変更後は必ず:
 
@@ -19,7 +19,7 @@
 npm run deploy:commands
 ```
 
-定義は `commands.ts`、処理は `index.ts` の `handleCommand`、登録スクリプトは `deploy-commands.ts`。
+定義は `commands.ts`、処理は `index.ts` の `handleCommand`（要約・AIステータスなど複雑 UI / 長時間処理は別 handler）、登録スクリプトは `deploy-commands.ts`。
 
 ## 周辺
 
@@ -29,6 +29,7 @@ npm run deploy:commands
 | `channel-activity.ts` | チャンネル活動度 |
 | `channel-summary.ts` | 要約（Gemini 利用の場合あり）。ログ作者名は `GuildMember.displayName`（必要時 REST で members fetch） |
 | `summary-page-store.ts` | 要約ページの Discord 側保持 |
+| `ai-status.ts` | `/nisei_ai_status` 用。社別ステータス取得＋Gemini でにせい口調化 |
 | `quiet-channel.ts` | 静音チャンネル判定 |
 
 ## See Also
@@ -36,5 +37,6 @@ npm run deploy:commands
 - [Architecture](wiki://architecture)
 - [Configuration](wiki://configuration)
 - [Deployment](wiki://deployment)
+- [Feature Engines](wiki://feature-engines)
 - [Agent Ownership](wiki://agent-ownership)
 

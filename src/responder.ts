@@ -353,7 +353,8 @@ export class ResponsePlanner {
       "・静か中はにせいって呼べば出る",
       "・/nisei_shizuka on:true/false、でも切り替え",
       "・/nisei_hatsugen level:0〜10、でサーバー全体の発言レベル",
-      "・/nisei_summary channel:#チャンネル、で直近24時間をまとめる"
+      "・/nisei_summary channel:#チャンネル、で直近24時間をまとめる",
+      "・/nisei_ai_status provider:openai、でAI各社のステータス説明"
     ].join("\n");
   }
 

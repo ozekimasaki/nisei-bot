@@ -12,7 +12,8 @@
 | `TALK_LEVEL` | 話しやすさ（1–10 系）。`TALKATIVENESS` は非推奨フォールバック |
 | `CONFUSION_RATE` 等 | 勘違い・沈黙・絵文字などの確率 |
 | `JANKEN_WIN_RATE` | じゃんけん勝率 |
-| `GEMINI_*` | チャンネル要約など任意の Gemini 連携 |
+| `GEMINI_*` | チャンネル要約・AIステータス説明など任意の Gemini 連携 |
+| `AI_STATUS_TIMEOUT_MS` | `/nisei_ai_status` のステータス取得タイムアウト（既定 8000） |
 
 数値レートは `numberEnv` パターンに従う。ギルド単位の talk level 上書きは `GuildState.talkLevel` + `talk-level.ts`。
 
