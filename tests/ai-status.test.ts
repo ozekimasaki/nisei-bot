@@ -229,6 +229,20 @@ describe("explainAiStatusInNiseiStyle", () => {
     expect(prompt).toContain("他社の話はしない");
     expect(prompt).toContain("display_name: Claude");
   });
+
+  it("builds an explain prompt that keeps brand names readable", () => {
+    const status = parseStatuspageSummary("openai", {
+      status: { description: "Partial System Degradation", indicator: "minor" },
+      components: [],
+      incidents: []
+    });
+    const prompt = buildAiStatusExplainPrompt(status);
+    expect(prompt).toContain("ひらがなにバラさない");
+    expect(prompt).toContain("一文字ずつの読み書きは禁止");
+    expect(prompt).toContain("【構成】");
+    expect(prompt).toContain("【よい例】");
+    expect(prompt).toContain("OpenAIちょっとよわよわ！");
+  });
 });
 
 describe("fetchProviderStatus", () => {
