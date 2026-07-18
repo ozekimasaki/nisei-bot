@@ -34,6 +34,8 @@ cp .env.example .env
 
 `.env` を編集します。
 
+最低限、以下は自分の値に設定してください（`.env.example` に全項目の初期値があります）。
+
 ```env
 DISCORD_TOKEN=your-token
 CLIENT_ID=your-application-client-id
@@ -41,21 +43,25 @@ GUILD_ID=your-test-guild-id
 DATABASE_URL=postgresql://chisei:password@localhost:5432/chisei
 BOT_NAMES=にせい,偽性
 BOT_DISPLAY_NAME=にせい
-TALK_LEVEL=5
-# TALKATIVENESS=normal  # 非推奨。TALK_LEVEL 未設定時のフォールバック（quiet→3, normal→5, loud→10）
-CONFUSION_RATE=0.2
-MEMORY_MIX_RATE=0.15
-JANKEN_WIN_RATE=0.95
-COOLDOWN_SECONDS=45
-WRONG_USER_RATE=0.12
-TREASURE_PICK_RATE=0.08
-AFFECTION_GAIN_RATE=1
-MISUNDERSTANDING_REUSE_RATE=0.15
-SILENCE_RATE=0.12
-EMOJI_USE_RATE=0.18
-GEMINI_API_KEY=
+```
+
+挙動のチューニング項目（発言頻度・勘違い率・じゃんけん勝率・Wiki・アイドル雑談など）は `.env.example` に初期値付きで並んでいます。主なものは次のとおりです（括弧内はコード上のデフォルト。`src/config.ts` 参照）。
+
+```env
+TALK_LEVEL=5                        # 呼ばれていないときの雑談介入レベル 0〜10
+# TALKATIVENESS=normal              # 非推奨。TALK_LEVEL 未設定時のフォールバック（quiet→3, normal→5, loud→10）
+CONFUSION_RATE=0.35                 # 覚えた内容を間違える確率（default 0.2）
+MEMORY_MIX_RATE=0.25                # 記憶を混ぜて答える確率（default 0.15）
+JANKEN_WIN_RATE=0.95                # じゃんけんで勝つ確率
+COOLDOWN_SECONDS=30                 # 雑談割り込みのクールダウン
+CHATTER_CHANCE_CAP=0.30             # 雑談介入確率の上限
+EMOJI_USE_RATE=0.18                 # 絵文字を付ける確率
+WIKI_ENABLED=true                   # ウィキペディア検索の有効/無効
+IDLE_CHATTER_RATE=0.015             # 無言が続いたときに独り言を言う確率
+IDLE_CHATTER_MINUTES=30             # 独り言の対象とみなす無言時間（分）
+GEMINI_API_KEY=                     # /nisei_summary・/nisei_ai_status に必要
 GEMINI_MODEL=gemini-3.5-flash
-GEMINI_THINKING_LEVEL=medium
+GEMINI_THINKING_LEVEL=medium        # minimal / low / medium / high
 AI_STATUS_TIMEOUT_MS=8000
 ```
 
@@ -404,6 +410,42 @@ pm2 restart nisei-bot --update-env
 ## Development
 
 ```bash
-npm test
-npm run build
+npm run dev            # tsx で開発起動（要 .env）
+npm test               # vitest run（tests/*.test.ts）
+npm run build          # prisma generate → tsc（型チェック兼ビルド、dist/ 生成）
+npm run db:generate    # Prisma Client 生成
+npm run db:dev         # 開発用 migration 作成（prisma migrate dev）
+npm run deploy:commands # スラッシュコマンドをギルドへ登録（要 .env）
 ```
+
+lint / typecheck 専用のスクリプトはありません。型チェックは `npm run build`（`tsc`）が兼ねます。
+
+## 構成
+
+```
+src/
+  index.ts            … エントリポイント。Client 初期化と MessageCreate / InteractionCreate
+  message-guard.ts    … 対象外・重複メッセージの除外
+  responder.ts        … ResponsePlanner（メッセージ応答の中枢）
+  classifier.ts       … 意図分類（teach / question / janken など）
+  commands.ts         … スラッシュコマンド定義
+  deploy-commands.ts  … スラッシュコマンド登録
+  config.ts           … 環境変数の読み込みとデフォルト値
+  db.ts               … MemoryStore（Prisma 経由の永続化）
+  fortune.ts / haiku.ts / janken.ts / dice.ts / quiz.ts / wikipedia.ts … 機能エンジン
+  mood.ts / affection.ts / personality.ts / chatter-engine.ts        … 気分・なつき・雑談口調
+  quiet-channel.ts / channel-activity.ts / channel-summary.ts        … 静音・活動・要約
+  ai-status.ts        … AI 各社ステータス（Gemini 利用）
+prisma/
+  schema.prisma       … Prisma スキーマ
+  migrations/         … マイグレーション
+scripts/              … 開発補助（Windows 起動・チェック、記憶正規化）
+tests/                … Vitest のユニットテスト
+.indexion/wiki/       … リポジトリのナレッジベース（wiki）
+ecosystem.config.cjs  … pm2 設定（アプリ名 nisei-bot、single instance）
+docker-compose.yml    … ローカル PostgreSQL（Podman / Docker 用）
+```
+
+## License
+
+このリポジトリにはライセンスファイルが含まれていません（`package.json` は `private: true`）。利用条件についてはリポジトリオーナーに確認してください。
