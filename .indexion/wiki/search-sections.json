@@ -369,7 +369,7 @@
       "section": {
         "id": "overview#-3",
         "title": "技術スタック",
-        "content": "\n| 項目 | 内容 |\n|------|------|\n| Runtime | Node.js 20+、ESM (`\"type\": \"module\"`) |\n| Discord | discord.js 14 |\n| DB | PostgreSQL + Prisma 6 |\n| Test | Vitest |\n| 本番 | pm2 (`nisei-bot`、fork・単一インスタンス) |\n\n",
+        "content": "\n| 項目 | 内容 |\n|------|------|\n| Runtime | Node.js 20+、ESM (`\"type\": \"module\"`) |\n| Discord | discord.js 14 |\n| DB | PostgreSQL + Prisma 7（`@prisma/adapter-pg`） |\n| Test | Vitest |\n| 本番 | pm2 (`nisei-bot`、fork・単一インスタンス) |\n\n",
         "page_id": "overview",
         "level": 2
       },
@@ -569,7 +569,7 @@
       "section": {
         "id": "agent-ownership#-2",
         "title": "オーナーシップ表",
-        "content": "\n| 変更したいこと | 主な編集先 |\n|---|---|\n| 意図判定（正規表現・キーワード） | `src/classifier.ts` |\n| 返答ロジック・新会話パターン | `src/responder.ts` |\n| DB 読み書き・スキーマ | `src/db.ts` + `prisma/schema.prisma` |\n| スラッシュコマンド定義 | `src/commands.ts` |\n| スラッシュコマンド処理 | `src/index.ts` の `handleCommand` |\n| 環境変数・デフォルト | `src/config.ts`、`.env.example` |\n| 占い・俳句・じゃんけん等 | 各 `src/*.ts` エンジン |\n| デフォルト語彙・リアクション | `src/default-brain.ts` |\n| 静音・活動・要約 | `quiet-channel.ts` / `channel-activity.ts` / `channel-summary.ts` |\n| AI各社ステータス説明 | `ai-status.ts` + `commands.ts` + `index.ts` の `handleAiStatusCommand` |\n\n",
+        "content": "\n| 変更したいこと | 主な編集先 |\n|---|---|\n| 意図判定（正規表現・キーワード） | `src/classifier.ts` |\n| 返答ロジック・新会話パターン | `src/responder.ts` |\n| DB 読み書き・スキーマ | `src/db.ts` + `src/prisma-client.ts` + `prisma/schema.prisma` + `prisma.config.ts` |\n| スラッシュコマンド定義 | `src/commands.ts` |\n| スラッシュコマンド処理 | `src/index.ts` の `handleCommand` |\n| 環境変数・デフォルト | `src/config.ts`、`.env.example` |\n| 占い・俳句・じゃんけん等 | 各 `src/*.ts` エンジン |\n| デフォルト語彙・リアクション | `src/default-brain.ts` |\n| 静音・活動・要約 | `quiet-channel.ts` / `channel-activity.ts` / `channel-summary.ts` |\n| AI各社ステータス説明 | `ai-status.ts` + `commands.ts` + `index.ts` の `handleAiStatusCommand` |\n\n",
         "page_id": "agent-ownership",
         "level": 2
       },

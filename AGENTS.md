@@ -96,7 +96,7 @@ src/*.ts              … 機能エンジン（占い・俳句・じゃんけん
 |---|---|
 | メッセージの意図判定（正規表現・キーワード） | `src/classifier.ts` |
 | 返答ロジック・新しい会話パターン | `src/responder.ts` |
-| DB 読み書き・スキーマ連携 | `src/db.ts` + `prisma/schema.prisma` |
+| DB 読み書き・スキーマ連携 | `src/db.ts` + `src/prisma-client.ts` + `prisma/schema.prisma` + `prisma.config.ts` |
 | スラッシュコマンド定義 | `src/commands.ts` |
 | スラッシュコマンドの処理 | `src/index.ts` の `handleCommand` |
 | 環境変数・デフォルト値 | `src/config.ts`、`.env.example` |

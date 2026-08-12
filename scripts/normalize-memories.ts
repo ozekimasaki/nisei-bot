@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/prisma-client.js";
 import {
   planGuildMemoryBatch,
   planMessageSnippetBatch,
@@ -22,7 +22,7 @@ type CliOptions = {
   verbose: boolean;
 };
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));

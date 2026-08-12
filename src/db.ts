@@ -1,7 +1,7 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, createPrismaClient, type PrismaClient } from "./prisma-client.js";
 import { MAX_MEMORY_WORD_LENGTH } from "./phrase.js";
 
-export const prisma = new PrismaClient();
+export const prisma = createPrismaClient();
 
 export type MemoryFact = {
   subject: string;

@@ -15,7 +15,7 @@
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 20.19+（Prisma 7 要件）
 - PostgreSQL
 - pm2
 - Discord bot token
@@ -122,7 +122,7 @@ sudo apt update
 sudo apt install -y git curl postgresql postgresql-contrib
 ```
 
-Node.js 20+ と pm2 を入れます。すでにNode.jsがある場合はバージョンだけ確認してください。
+Node.js 20.19+ と pm2 を入れます。すでにNode.jsがある場合はバージョンだけ確認してください。
 
 ```bash
 node -v

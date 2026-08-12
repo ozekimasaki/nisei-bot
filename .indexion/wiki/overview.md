@@ -15,7 +15,7 @@ chisei-oss は Discord bot「にせい」のリポジトリです。生成AIを�
 |------|------|
 | Runtime | Node.js 20+、ESM (`"type": "module"`) |
 | Discord | discord.js 14 |
-| DB | PostgreSQL + Prisma 6 |
+| DB | PostgreSQL + Prisma 7（`@prisma/adapter-pg`） |
 | Test | Vitest |
 | 本番 | pm2 (`nisei-bot`、fork・単一インスタンス) |
 

@@ -2,6 +2,8 @@
 
 `MemoryStore`（`src/db.ts`）が Prisma モデルの唯一のアプリ側ラッパ。`responder.ts` から生の Prisma を直接叩かない。
 
+Prisma Client は `prisma generate` で `src/generated/prisma` に生成する（`prisma-client` provider）。ランタイム接続は `src/prisma-client.ts` が `@prisma/adapter-pg` 経由で行い、CLI 用の `DATABASE_URL` はルートの `prisma.config.ts` で読む。
+
 ## 主要モデル
 
 | Model | 用途 |

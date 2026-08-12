@@ -8,7 +8,7 @@
 |---|---|
 | 意図判定（正規表現・キーワード） | `src/classifier.ts` |
 | 返答ロジック・新会話パターン | `src/responder.ts` |
-| DB 読み書き・スキーマ | `src/db.ts` + `prisma/schema.prisma` |
+| DB 読み書き・スキーマ | `src/db.ts` + `src/prisma-client.ts` + `prisma/schema.prisma` + `prisma.config.ts` |
 | スラッシュコマンド定義 | `src/commands.ts` |
 | スラッシュコマンド処理 | `src/index.ts` の `handleCommand` |
 | 環境変数・デフォルト | `src/config.ts`、`.env.example` |
