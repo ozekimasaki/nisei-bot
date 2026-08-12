@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/prisma-client.js";
 
 const required = ["DISCORD_TOKEN", "CLIENT_ID", "DATABASE_URL"] as const;
 const missing = required.filter((name) => !process.env[name]);
@@ -14,7 +14,7 @@ if (!process.env.GUILD_ID) {
   console.warn("GUILD_ID is empty. Slash commands will deploy globally, which can take time.");
 }
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 try {
   await prisma.$queryRaw`SELECT 1`;
