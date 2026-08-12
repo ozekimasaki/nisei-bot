@@ -259,7 +259,7 @@
       "section": {
         "id": "memory-store",
         "title": "Memory Store",
-        "content": "\n`MemoryStore`（`src/db.ts`）が Prisma モデルの唯一のアプリ側ラッパ。`responder.ts` から生の Prisma を直接叩かない。\n\n",
+        "content": "\n`MemoryStore`（`src/db.ts`）が Prisma モデルの唯一のアプリ側ラッパ。`responder.ts` から生の Prisma を直接叩かない。\n\nPrisma Client は `prisma generate` で `src/generated/prisma` に生成する（`prisma-client` provider）。ランタイム接続は `src/prisma-client.ts` が `@prisma/adapter-pg` 経由で行い、CLI 用の `DATABASE_URL` はルートの `prisma.config.ts` で読む。\n\n",
         "page_id": "memory-store",
         "level": 1
       },
