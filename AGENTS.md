@@ -59,10 +59,12 @@ npx prisma migrate deploy   # 本番 / 初回セットアップ
 npm run db:dev              # 開発用 migration 作成
 npm run deploy:commands     # スラッシュコマンド登録（要 .env）
 npm run dev                 # 開発起動（tsx）
-npm run build               # tsc → dist/
+npm run build               # prisma generate → tsc → dist/
 npm start                   # node dist/index.js
-npm test                    # vitest run
+npm test                    # vitest run（tests/*.test.ts、155 テスト）
 ```
+
+lint / typecheck 専用スクリプトは無い。**型チェックは `npm run build`（`tsc`）が兼ねる**。ESLint / Prettier は未設定なので、既存ファイルの体裁に合わせること。変更後は最低限 `npm test` と `npm run build` を通す。
 
 Windows ローカル検証（Podman）:
 
