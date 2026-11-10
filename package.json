@@ -38,7 +38,7 @@
     "vitest": "^3.2.7"
   },
   "overrides": {
-    "undici": "6.28.0"
+    "undici": "6.29.1"
   },
   "engines": {
     "node": ">=20.19.0"
